@@ -8,7 +8,15 @@ from models import db, Template, ValidationRule, GroupRule
 from validators import validate_json_against_template, VALIDATION_CATALOG
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///validator.db'
+
+# On Azure App Service, SQLITE_DB_PATH should be set to /home/validator.db
+# /home is the only persistent directory across restarts and deployments.
+_db_path = os.environ.get(
+    'SQLITE_DB_PATH',
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), 'instance', 'validator.db'),
+)
+os.makedirs(os.path.dirname(_db_path), exist_ok=True)
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{_db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-in-prod')
 

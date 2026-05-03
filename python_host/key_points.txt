@@ -1,15 +1,420 @@
+================================================================================
+  ARK JSON Validator — Azure App Service Deployment Guide
+  (Linux App Service + Deployment Slots)
+================================================================================
 
-# Create a virtual environment
-python -m venv myenv
+NOTE: Deployment slots require Standard tier (S1) or higher.
+      Replace every <placeholder> with your actual value before running.
 
-# Activate it
-# On Windows:
-myenv\Scripts\activate
+VARIABLES USED THROUGHOUT:
+  APP_NAME  = ark-json-validator          (must be globally unique in Azure)
+  RG        = rg-ark-validator
+  PLAN      = asp-ark-validator
+  LOCATION  = eastus
+  RUNTIME   = PYTHON:3.11
+  SLOT      = staging
 
-# On macOS/Linux:
-source myenv/bin/activate
 
-# Deactivate later
-deactivate
+================================================================================
+  PART 1 — LOCAL SETUP (run once per machine)
+================================================================================
 
-> Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
+# 1.1  Create and activate a virtual environment
+python -m venv venv
+
+# Windows
+venv\Scripts\activate
+
+# macOS / Linux
+source venv/bin/activate
+
+# 1.2  Install dependencies
+pip install -r requirements.txt
+
+# 1.3  Run locally to verify everything works
+python app.py
+#      Open http://localhost:5000
+
+
+================================================================================
+  PART 2 — INSTALL AZURE CLI (run once per machine)
+================================================================================
+
+# Windows  — download from https://aka.ms/installazurecliwindows
+# macOS    — brew install azure-cli
+# Ubuntu   — curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+# 2.1  Verify installation
+az --version
+
+# 2.2  Optional: add/upgrade the webapp extension
+az extension add --name webapp --upgrade
+
+
+================================================================================
+  PART 3 — LOGIN & SUBSCRIPTION
+================================================================================
+
+# 3.1  Login (opens browser for interactive auth)
+az login
+
+# 3.2  List subscriptions
+az account list --output table
+
+# 3.3  Set target subscription
+az account set --subscription "<your-subscription-id>"
+
+# 3.4  Confirm
+az account show --output table
+
+
+================================================================================
+  PART 4 — RESOURCE GROUP
+================================================================================
+
+# 4.1  Create resource group
+az group create \
+  --name rg-ark-validator \
+  --location eastus
+
+
+================================================================================
+  PART 5 — APP SERVICE PLAN  (Standard S1 required for deployment slots)
+================================================================================
+
+# 5.1  Create Linux App Service Plan
+az appservice plan create \
+  --name asp-ark-validator \
+  --resource-group rg-ark-validator \
+  --sku S1 \
+  --is-linux \
+  --location eastus
+
+
+================================================================================
+  PART 6 — WEB APP (PRODUCTION SLOT)
+================================================================================
+
+# 6.1  Create the web app
+az webapp create \
+  --name ark-json-validator \
+  --resource-group rg-ark-validator \
+  --plan asp-ark-validator \
+  --runtime "PYTHON:3.11"
+
+# 6.2  Set the startup script (points to startup.sh inside the zip)
+az webapp config set \
+  --name ark-json-validator \
+  --resource-group rg-ark-validator \
+  --startup-file "startup.sh"
+
+# 6.3  Set application environment variables — PRODUCTION
+az webapp config appsettings set \
+  --name ark-json-validator \
+  --resource-group rg-ark-validator \
+  --settings \
+    SECRET_KEY="<change-this-to-a-long-random-string>" \
+    API_USERNAME="admin" \
+    API_PASSWORD="<change-this-strong-password>" \
+    SQLITE_DB_PATH="/home/validator.db" \
+    SCM_DO_BUILD_DURING_DEPLOYMENT="true" \
+    FLASK_ENV="production"
+
+# 6.4  Mark credentials and DB path as slot-sticky
+#      (slot-sticky settings stay on their slot and are NOT swapped)
+az webapp config appsettings set \
+  --name ark-json-validator \
+  --resource-group rg-ark-validator \
+  --slot-settings \
+    SECRET_KEY="<change-this-to-a-long-random-string>" \
+    API_PASSWORD="<change-this-strong-password>" \
+    SQLITE_DB_PATH="/home/validator.db"
+
+
+================================================================================
+  PART 7 — DEPLOYMENT SLOT (STAGING)
+================================================================================
+
+# 7.1  Create staging slot (clones production config as baseline)
+az webapp deployment slot create \
+  --name ark-json-validator \
+  --resource-group rg-ark-validator \
+  --slot staging \
+  --configuration-source ark-json-validator
+
+# 7.2  Override settings for staging
+az webapp config appsettings set \
+  --name ark-json-validator \
+  --resource-group rg-ark-validator \
+  --slot staging \
+  --settings \
+    SQLITE_DB_PATH="/home/validator-staging.db" \
+    FLASK_ENV="staging"
+
+# 7.3  Mark staging DB path as slot-sticky
+az webapp config appsettings set \
+  --name ark-json-validator \
+  --resource-group rg-ark-validator \
+  --slot staging \
+  --slot-settings \
+    SQLITE_DB_PATH="/home/validator-staging.db"
+
+
+================================================================================
+  PART 8 — PREPARE DEPLOYMENT ZIP
+================================================================================
+
+# Run from inside the python_host/ directory
+
+# Windows (PowerShell)
+Compress-Archive `
+  -Path app.py, models.py, validators.py, requirements.txt, startup.sh, templates, static `
+  -DestinationPath ..\deploy.zip `
+  -Force
+
+# macOS / Linux
+zip -r ../deploy.zip . \
+  --exclude "*.pyc" \
+  --exclude "__pycache__/*" \
+  --exclude "*.db" \
+  --exclude ".git/*" \
+  --exclude "venv/*" \
+  --exclude ".venv/*" \
+  --exclude "instance/*" \
+  --exclude "deploy.zip"
+
+
+================================================================================
+  PART 9 — DEPLOY TO STAGING SLOT
+================================================================================
+
+# 9.1  Push zip to staging slot
+az webapp deployment source config-zip \
+  --name ark-json-validator \
+  --resource-group rg-ark-validator \
+  --slot staging \
+  --src ..\deploy.zip
+
+# 9.2  Stream live logs from staging to watch the build
+az webapp log tail \
+  --name ark-json-validator \
+  --resource-group rg-ark-validator \
+  --slot staging
+
+# 9.3  Get the staging URL
+az webapp show \
+  --name ark-json-validator \
+  --resource-group rg-ark-validator \
+  --slot staging \
+  --query defaultHostName \
+  --output tsv
+#  Result: ark-json-validator-staging.azurewebsites.net
+
+
+================================================================================
+  PART 10 — TEST STAGING, THEN SWAP TO PRODUCTION
+================================================================================
+
+# 10.1  Smoke-test the API on staging (PowerShell)
+$creds = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("admin:<password>"))
+Invoke-RestMethod `
+  -Uri "https://ark-json-validator-staging.azurewebsites.net/api/templates" `
+  -Headers @{ Authorization = "Basic $creds" }
+
+# 10.1  Smoke-test (macOS / Linux / Git Bash)
+curl -u admin:<password> \
+  https://ark-json-validator-staging.azurewebsites.net/api/templates
+
+# 10.2  Zero-downtime swap: staging → production
+az webapp deployment slot swap \
+  --name ark-json-validator \
+  --resource-group rg-ark-validator \
+  --slot staging \
+  --target-slot production
+
+# Production URL: https://ark-json-validator.azurewebsites.net
+
+# 10.3  Instant rollback if something is wrong (swap back)
+az webapp deployment slot swap \
+  --name ark-json-validator \
+  --resource-group rg-ark-validator \
+  --slot staging \
+  --target-slot production
+
+
+================================================================================
+  PART 11 — SUBSEQUENT DEPLOYMENTS (repeat cycle)
+================================================================================
+
+# 11.1  Rebuild the zip
+Compress-Archive -Path app.py,models.py,validators.py,requirements.txt,startup.sh,templates,static -DestinationPath ..\deploy.zip -Force
+
+# 11.2  Deploy to staging
+az webapp deployment source config-zip --name ark-json-validator --resource-group rg-ark-validator --slot staging --src ..\deploy.zip
+
+# 11.3  Verify staging, then swap
+az webapp deployment slot swap --name ark-json-validator --resource-group rg-ark-validator --slot staging --target-slot production
+
+
+================================================================================
+  PART 12 — OPTIONAL: CUSTOM DOMAIN & FREE MANAGED SSL
+================================================================================
+
+# Pre-requisite: add a CNAME record in your DNS pointing to azurewebsites.net
+
+# 12.1  Add custom hostname
+az webapp config hostname add \
+  --webapp-name ark-json-validator \
+  --resource-group rg-ark-validator \
+  --hostname validator.yourdomain.com
+
+# 12.2  Create free managed TLS certificate
+az webapp config ssl create \
+  --name ark-json-validator \
+  --resource-group rg-ark-validator \
+  --hostname validator.yourdomain.com
+
+# 12.3  Enforce HTTPS only
+az webapp update \
+  --name ark-json-validator \
+  --resource-group rg-ark-validator \
+  --https-only true
+
+
+================================================================================
+  PART 13 — MONITORING & LOGS
+================================================================================
+
+# 13.1  Enable filesystem logging
+az webapp log config \
+  --name ark-json-validator \
+  --resource-group rg-ark-validator \
+  --application-logging filesystem \
+  --level information \
+  --web-server-logging filesystem
+
+# 13.2  Stream live logs — production
+az webapp log tail \
+  --name ark-json-validator \
+  --resource-group rg-ark-validator
+
+# 13.3  Stream live logs — staging
+az webapp log tail \
+  --name ark-json-validator \
+  --resource-group rg-ark-validator \
+  --slot staging
+
+# 13.4  Download log bundle
+az webapp log download \
+  --name ark-json-validator \
+  --resource-group rg-ark-validator \
+  --log-file ark-validator-logs.zip
+
+# 13.5  View deployment history
+az webapp deployment list \
+  --name ark-json-validator \
+  --resource-group rg-ark-validator \
+  --output table
+
+# 13.6  List current app settings
+az webapp config appsettings list \
+  --name ark-json-validator \
+  --resource-group rg-ark-validator \
+  --output table
+
+# 13.7  Open Kudu console (diagnostics / files / bash)
+#       https://ark-json-validator.scm.azurewebsites.net/DebugConsole
+
+
+================================================================================
+  PART 14 — SCALE UP / OUT
+================================================================================
+
+# 14.1  Scale up plan to Premium P2v3 (more CPU / RAM)
+az appservice plan update \
+  --name asp-ark-validator \
+  --resource-group rg-ark-validator \
+  --sku P2V3
+
+# 14.2  Set manual instance count to 3
+az appservice plan update \
+  --name asp-ark-validator \
+  --resource-group rg-ark-validator \
+  --number-of-workers 3
+
+# 14.3  Create autoscale rule (1–5 instances based on CPU)
+az monitor autoscale create \
+  --resource-group rg-ark-validator \
+  --resource asp-ark-validator \
+  --resource-type Microsoft.Web/serverfarms \
+  --name autoscale-ark-validator \
+  --min-count 1 \
+  --max-count 5 \
+  --count 2
+
+az monitor autoscale rule create \
+  --resource-group rg-ark-validator \
+  --autoscale-name autoscale-ark-validator \
+  --scale out 1 \
+  --condition "CpuPercentage > 70 avg 5m"
+
+az monitor autoscale rule create \
+  --resource-group rg-ark-validator \
+  --autoscale-name autoscale-ark-validator \
+  --scale in 1 \
+  --condition "CpuPercentage < 30 avg 10m"
+
+
+================================================================================
+  PART 15 — CLEANUP (destroys all resources permanently)
+================================================================================
+
+az group delete \
+  --name rg-ark-validator \
+  --yes \
+  --no-wait
+
+
+================================================================================
+  QUICK REFERENCE — URLS
+================================================================================
+
+  Production   https://ark-json-validator.azurewebsites.net
+  Staging      https://ark-json-validator-staging.azurewebsites.net
+  Kudu Prod    https://ark-json-validator.scm.azurewebsites.net
+  Kudu Staging https://ark-json-validator-staging.scm.azurewebsites.net
+
+
+================================================================================
+  QUICK REFERENCE — ENVIRONMENT VARIABLES
+================================================================================
+
+  SECRET_KEY                     Long random string for Flask sessions
+  API_USERNAME                   Basic Auth username  (default: admin)
+  API_PASSWORD                   Basic Auth password
+  SQLITE_DB_PATH                 /home/validator.db         (production)
+                                 /home/validator-staging.db (staging)
+  FLASK_ENV                      production | staging
+  SCM_DO_BUILD_DURING_DEPLOYMENT true  — lets Azure run pip install on deploy
+
+
+================================================================================
+  CHEAT SHEET — COMPLETE FIRST DEPLOY IN ONE BLOCK
+================================================================================
+
+az login
+az account set --subscription "<id>"
+az group create --name rg-ark-validator --location eastus
+az appservice plan create --name asp-ark-validator --resource-group rg-ark-validator --sku S1 --is-linux --location eastus
+az webapp create --name ark-json-validator --resource-group rg-ark-validator --plan asp-ark-validator --runtime "PYTHON:3.11"
+az webapp config set --name ark-json-validator --resource-group rg-ark-validator --startup-file "startup.sh"
+az webapp config appsettings set --name ark-json-validator --resource-group rg-ark-validator --settings SECRET_KEY="<secret>" API_USERNAME="admin" API_PASSWORD="<password>" SQLITE_DB_PATH="/home/validator.db" SCM_DO_BUILD_DURING_DEPLOYMENT="true"
+az webapp config appsettings set --name ark-json-validator --resource-group rg-ark-validator --slot-settings SECRET_KEY="<secret>" API_PASSWORD="<password>" SQLITE_DB_PATH="/home/validator.db"
+az webapp deployment slot create --name ark-json-validator --resource-group rg-ark-validator --slot staging --configuration-source ark-json-validator
+az webapp config appsettings set --name ark-json-validator --resource-group rg-ark-validator --slot staging --slot-settings SQLITE_DB_PATH="/home/validator-staging.db"
+Compress-Archive -Path app.py,models.py,validators.py,requirements.txt,startup.sh,templates,static -DestinationPath ..\deploy.zip -Force
+az webapp deployment source config-zip --name ark-json-validator --resource-group rg-ark-validator --slot staging --src ..\deploy.zip
+az webapp log tail --name ark-json-validator --resource-group rg-ark-validator --slot staging
+az webapp deployment slot swap --name ark-json-validator --resource-group rg-ark-validator --slot staging --target-slot production
+
+================================================================================
