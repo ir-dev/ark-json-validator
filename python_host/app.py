@@ -215,7 +215,8 @@ def api_validate_by_id(tid):
     if data is None:
         return jsonify({'error': 'Request body must be valid JSON with Content-Type: application/json'}), 400
     result = validate_json_against_template(data, template)
-    return jsonify(result), (200 if result['valid'] else 422)
+    #return jsonify(result), (200 if result['valid'] else 422)
+    return jsonify(result), 200
 
 
 @app.route('/api/validate/by-name/<path:name>', methods=['POST'])
@@ -228,7 +229,8 @@ def api_validate_by_name(name):
     if data is None:
         return jsonify({'error': 'Request body must be valid JSON with Content-Type: application/json'}), 400
     result = validate_json_against_template(data, template)
-    return jsonify(result), (200 if result['valid'] else 422)
+    #return jsonify(result), (200 if result['valid'] else 422)
+    return jsonify(result), 200
 
 
 if __name__ == '__main__':
