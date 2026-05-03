@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(New-Item -ItemType Directory -Force -Path \"d:\\\\Abi\\\\git_src\\\\ark-json-validator\\\\python_host\\\\templates\")",
+      "Bash(Out-Null)",
+      "Bash(New-Item -ItemType Directory -Force -Path \"d:\\\\Abi\\\\git_src\\\\ark-json-validator\\\\python_host\\\\static\\\\css\")",
+      "Bash(New-Item -ItemType Directory -Force -Path \"d:\\\\Abi\\\\git_src\\\\ark-json-validator\\\\python_host\\\\static\\\\js\")",
+      "Bash(Write-Output \"Directories created\")"
+    ]
+  }
+}

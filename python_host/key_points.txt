@@ -1,0 +1,15 @@
+
+# Create a virtual environment
+python -m venv myenv
+
+# Activate it
+# On Windows:
+myenv\Scripts\activate
+
+# On macOS/Linux:
+source myenv/bin/activate
+
+# Deactivate later
+deactivate
+
+> Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process

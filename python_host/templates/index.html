@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ARK JSON Validator</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+
+<!-- ══ NAVBAR ══════════════════════════════════════════════════════════════ -->
+<nav class="navbar navbar-expand-lg ark-navbar sticky-top">
+  <div class="container-fluid px-4">
+    <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+      <div class="brand-icon"><i class="fas fa-shield-halved"></i></div>
+      <span class="brand-text">ARK <span class="brand-accent">JSON Validator</span></span>
+    </a>
+    <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="mainNav">
+      <ul class="navbar-nav ms-4 gap-1" id="mainTabs">
+        <li class="nav-item"><a class="nav-link ark-tab active" href="#" data-tab="dashboard"><i class="fas fa-gauge-high me-1"></i>Dashboard</a></li>
+        <li class="nav-item"><a class="nav-link ark-tab" href="#" data-tab="builder"><i class="fas fa-hammer me-1"></i>Template Builder</a></li>
+        <li class="nav-item"><a class="nav-link ark-tab" href="#" data-tab="validate"><i class="fas fa-circle-check me-1"></i>Validate JSON</a></li>
+        <li class="nav-item"><a class="nav-link ark-tab" href="#" data-tab="templates"><i class="fas fa-layer-group me-1"></i>Templates</a></li>
+        <li class="nav-item"><a class="nav-link ark-tab" href="#" data-tab="apidocs"><i class="fas fa-code me-1"></i>API Docs</a></li>
+      </ul>
+      <div class="ms-auto d-flex align-items-center gap-3">
+        <span class="status-pill"><span class="status-dot"></span>Running</span>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ══ MAIN CONTENT ════════════════════════════════════════════════════════ -->
+<main class="container-fluid px-4 py-4">
+
+  <!-- ── DASHBOARD ──────────────────────────────────────────────────────── -->
+  <section id="tab-dashboard" class="tab-section">
+    <div class="page-header mb-4">
+      <h2 class="page-title">Dashboard</h2>
+      <p class="page-subtitle">Manage JSON validation templates and run validations</p>
+    </div>
+    <div class="row g-4 mb-4">
+      <div class="col-sm-6 col-lg-3">
+        <div class="stat-card stat-card--blue">
+          <div class="stat-icon"><i class="fas fa-layer-group"></i></div>
+          <div class="stat-body">
+            <div class="stat-value" id="dash-template-count">—</div>
+            <div class="stat-label">Templates</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="stat-card stat-card--purple">
+          <div class="stat-icon"><i class="fas fa-list-check"></i></div>
+          <div class="stat-body">
+            <div class="stat-value" id="dash-rule-count">—</div>
+            <div class="stat-label">Total Rules</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="stat-card stat-card--emerald">
+          <div class="stat-icon"><i class="fas fa-check-double"></i></div>
+          <div class="stat-body">
+            <div class="stat-value" id="dash-valid-types">35+</div>
+            <div class="stat-label">Validation Types</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="stat-card stat-card--amber">
+          <div class="stat-icon"><i class="fas fa-brands fa-sap"></i></div>
+          <div class="stat-body">
+            <div class="stat-value">SAP</div>
+            <div class="stat-label">OData Ready</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <div class="ark-card h-100">
+          <div class="ark-card-header"><i class="fas fa-rocket me-2 text-primary"></i>Quick Start</div>
+          <div class="ark-card-body">
+            <div class="quick-step" onclick="switchTab('builder')">
+              <div class="qs-num">1</div>
+              <div class="qs-text"><strong>Build a Template</strong><br><small>Paste JSON, extract fields, assign validation rules</small></div>
+              <i class="fas fa-chevron-right qs-arrow"></i>
+            </div>
+            <div class="quick-step" onclick="switchTab('validate')">
+              <div class="qs-num">2</div>
+              <div class="qs-text"><strong>Validate JSON</strong><br><small>Select a template and run validation on any JSON</small></div>
+              <i class="fas fa-chevron-right qs-arrow"></i>
+            </div>
+            <div class="quick-step" onclick="switchTab('apidocs')">
+              <div class="qs-num">3</div>
+              <div class="qs-text"><strong>Use the REST API</strong><br><small>Integrate validation into your pipelines via HTTP</small></div>
+              <i class="fas fa-chevron-right qs-arrow"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="ark-card h-100">
+          <div class="ark-card-header"><i class="fas fa-layer-group me-2 text-primary"></i>Recent Templates</div>
+          <div class="ark-card-body" id="dash-recent-templates">
+            <div class="empty-state-sm"><i class="fas fa-inbox"></i><br>No templates yet</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── TEMPLATE BUILDER ───────────────────────────────────────────────── -->
+  <section id="tab-builder" class="tab-section d-none">
+    <div class="page-header mb-4 d-flex justify-content-between align-items-start">
+      <div>
+        <h2 class="page-title" id="builder-title">Template Builder</h2>
+        <p class="page-subtitle" id="builder-subtitle">Extract fields from JSON and assign validation rules</p>
+      </div>
+      <button class="btn btn-outline-secondary btn-sm" id="builder-reset-btn" onclick="resetBuilder()">
+        <i class="fas fa-rotate-left me-1"></i>New Template
+      </button>
+    </div>
+
+    <!-- Step 1: Load JSON -->
+    <div class="ark-card mb-4" id="builder-step1">
+      <div class="ark-card-header d-flex align-items-center gap-2">
+        <span class="step-badge">1</span>
+        <span>Load Sample JSON</span>
+        <div class="ms-auto d-flex gap-2">
+          <button class="btn btn-xs btn-outline-secondary" onclick="loadSample('generic')">Generic Sample</button>
+          <button class="btn btn-xs btn-outline-secondary" onclick="loadSample('sap_order')">SAP Sales Order</button>
+          <button class="btn btn-xs btn-outline-secondary" onclick="loadSample('sap_bp')">SAP Business Partner</button>
+          <label class="btn btn-xs btn-outline-primary mb-0">
+            <i class="fas fa-upload me-1"></i>Upload JSON
+            <input type="file" accept=".json,application/json" class="d-none" id="builder-upload-input" onchange="handleBuilderUpload(event)" />
+          </label>
+        </div>
+      </div>
+      <div class="ark-card-body">
+        <textarea id="builder-json-input" class="json-editor" placeholder='Paste your JSON here, e.g. {"name": "John", "email": "john@example.com"}'></textarea>
+        <div class="d-flex gap-2 mt-2">
+          <button class="btn btn-primary" onclick="extractFields()"><i class="fas fa-wand-magic-sparkles me-1"></i>Extract Fields</button>
+          <button class="btn btn-outline-secondary btn-sm" onclick="formatBuilderJSON()"><i class="fas fa-align-left me-1"></i>Format</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Field Rules -->
+    <div class="ark-card mb-4 d-none" id="builder-step2">
+      <div class="ark-card-header d-flex align-items-center gap-2">
+        <span class="step-badge">2</span>
+        <span>Configure Field Validation Rules</span>
+        <span class="ms-2 text-muted small" id="builder-field-count"></span>
+        <div class="ms-auto">
+          <button class="btn btn-xs btn-outline-success" onclick="openAddFieldModal()"><i class="fas fa-plus me-1"></i>Add Field Manually</button>
+        </div>
+      </div>
+      <div class="ark-card-body p-0">
+        <div class="table-responsive">
+          <table class="table ark-table mb-0">
+            <thead>
+              <tr>
+                <th style="width:30%">Field Path</th>
+                <th style="width:20%">Display Name</th>
+                <th style="width:10%">Type</th>
+                <th>Validation Rules</th>
+                <th style="width:100px">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="builder-fields-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Group Rules -->
+    <div class="ark-card mb-4 d-none" id="builder-step3">
+      <div class="ark-card-header d-flex align-items-center gap-2">
+        <span class="step-badge">3</span>
+        <span>Group / Cross-Field Rules <span class="text-muted small fw-normal">(optional)</span></span>
+        <div class="ms-auto">
+          <button class="btn btn-xs btn-outline-success" onclick="openGroupRuleModal()"><i class="fas fa-plus me-1"></i>Add Group Rule</button>
+        </div>
+      </div>
+      <div class="ark-card-body" id="builder-group-rules-container">
+        <div class="empty-state-sm" id="group-rules-empty"><i class="fas fa-object-group"></i><br>No group rules yet</div>
+        <div id="group-rules-list"></div>
+      </div>
+    </div>
+
+    <!-- Step 4: Save -->
+    <div class="ark-card d-none" id="builder-step4">
+      <div class="ark-card-header d-flex align-items-center gap-2">
+        <span class="step-badge">4</span>
+        <span>Save Template</span>
+      </div>
+      <div class="ark-card-body">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">Template Name <span class="text-danger">*</span></label>
+            <input type="text" id="template-name-input" class="form-control" placeholder="e.g. SAP Sales Order v1" />
+          </div>
+          <div class="col-md-8">
+            <label class="form-label">Description</label>
+            <input type="text" id="template-desc-input" class="form-control" placeholder="Optional description..." />
+          </div>
+        </div>
+        <div class="mt-3 d-flex gap-2">
+          <button class="btn btn-success px-4" onclick="saveTemplate()">
+            <i class="fas fa-floppy-disk me-2"></i>Save Template
+          </button>
+          <span id="save-status" class="align-self-center text-muted small"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── VALIDATE JSON ───────────────────────────────────────────────────── -->
+  <section id="tab-validate" class="tab-section d-none">
+    <div class="page-header mb-4">
+      <h2 class="page-title">Validate JSON</h2>
+      <p class="page-subtitle">Run a saved template against any JSON payload</p>
+    </div>
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <div class="ark-card h-100">
+          <div class="ark-card-header"><i class="fas fa-sliders me-2"></i>Configuration</div>
+          <div class="ark-card-body d-flex flex-column gap-3">
+            <div>
+              <label class="form-label">Select Template <span class="text-danger">*</span></label>
+              <select id="validate-template-select" class="form-select">
+                <option value="">— choose a template —</option>
+              </select>
+            </div>
+            <div class="flex-grow-1">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="form-label mb-0">JSON Payload <span class="text-danger">*</span></label>
+                <div class="d-flex gap-2">
+                  <button class="btn btn-xs btn-outline-secondary" onclick="formatValidateJSON()"><i class="fas fa-align-left me-1"></i>Format</button>
+                  <label class="btn btn-xs btn-outline-secondary mb-0">
+                    <i class="fas fa-upload me-1"></i>Upload
+                    <input type="file" accept=".json" class="d-none" id="validate-upload-input" onchange="handleValidateUpload(event)" />
+                  </label>
+                </div>
+              </div>
+              <textarea id="validate-json-input" class="json-editor" style="min-height:320px" placeholder='{"field": "value", ...}'></textarea>
+            </div>
+            <button class="btn btn-success btn-lg" onclick="runValidation()">
+              <i class="fas fa-play me-2"></i>Run Validation
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="ark-card h-100">
+          <div class="ark-card-header d-flex align-items-center gap-2">
+            <i class="fas fa-chart-bar me-1"></i>Results
+            <div id="validation-status-badge" class="ms-auto"></div>
+          </div>
+          <div class="ark-card-body" id="validation-results-panel">
+            <div class="empty-state-sm"><i class="fas fa-magnifying-glass fa-2x mb-2"></i><br>Run validation to see results</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── TEMPLATES LIBRARY ──────────────────────────────────────────────── -->
+  <section id="tab-templates" class="tab-section d-none">
+    <div class="page-header mb-4 d-flex justify-content-between align-items-start">
+      <div>
+        <h2 class="page-title">Templates Library</h2>
+        <p class="page-subtitle">All saved validation templates</p>
+      </div>
+      <button class="btn btn-primary" onclick="switchTab('builder')">
+        <i class="fas fa-plus me-1"></i>New Template
+      </button>
+    </div>
+    <div class="row g-3" id="templates-grid">
+      <div class="col-12"><div class="empty-state"><i class="fas fa-layer-group fa-3x mb-3"></i><br>No templates yet.<br><small>Use the Template Builder to create one.</small></div></div>
+    </div>
+  </section>
+
+  <!-- ── API DOCS ────────────────────────────────────────────────────────── -->
+  <section id="tab-apidocs" class="tab-section d-none">
+    <div class="page-header mb-4">
+      <h2 class="page-title">REST API Documentation</h2>
+      <p class="page-subtitle">All endpoints require HTTP Basic Authentication</p>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-md-6">
+        <div class="ark-card">
+          <div class="ark-card-header"><i class="fas fa-key me-2 text-warning"></i>Authentication</div>
+          <div class="ark-card-body">
+            <p class="mb-2">All <code>/api/*</code> endpoints require <strong>HTTP Basic Auth</strong>:</p>
+            <div class="code-block">Authorization: Basic &lt;base64(username:password)&gt;</div>
+            <p class="mt-3 mb-1">Default credentials:</p>
+            <div class="code-block">Username: <span class="text-success">admin</span><br>Password: <span class="text-success">admin123</span></div>
+            <p class="text-warning mt-2 small"><i class="fas fa-triangle-exclamation me-1"></i>Set <code>API_USERNAME</code> and <code>API_PASSWORD</code> environment variables in production.</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="ark-card">
+          <div class="ark-card-header"><i class="fas fa-circle-info me-2 text-primary"></i>Base URL &amp; Response Codes</div>
+          <div class="ark-card-body">
+            <div class="code-block">http://localhost:5000</div>
+            <table class="table table-sm mt-3 mb-0">
+              <tbody>
+                <tr><td><span class="badge bg-success">200</span></td><td>Validation passed</td></tr>
+                <tr><td><span class="badge bg-warning text-dark">201</span></td><td>Template created</td></tr>
+                <tr><td><span class="badge bg-danger">422</span></td><td>Validation failed (with details)</td></tr>
+                <tr><td><span class="badge bg-danger">401</span></td><td>Authentication required</td></tr>
+                <tr><td><span class="badge bg-danger">404</span></td><td>Template not found</td></tr>
+                <tr><td><span class="badge bg-danger">409</span></td><td>Template name conflict</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Endpoint cards -->
+    <div class="d-flex flex-column gap-3">
+
+      <div class="ark-card">
+        <div class="ark-card-header d-flex align-items-center gap-2">
+          <span class="method-badge get">GET</span>
+          <code>/api/templates</code>
+          <span class="ms-2 text-muted small">List all templates</span>
+        </div>
+        <div class="ark-card-body">
+          <div class="code-block">curl -u admin:admin123 http://localhost:5000/api/templates</div>
+        </div>
+      </div>
+
+      <div class="ark-card">
+        <div class="ark-card-header d-flex align-items-center gap-2">
+          <span class="method-badge post">POST</span>
+          <code>/api/templates</code>
+          <span class="ms-2 text-muted small">Create a template</span>
+        </div>
+        <div class="ark-card-body">
+          <div class="code-block">curl -u admin:admin123 -X POST http://localhost:5000/api/templates \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My Template",
+    "description": "Optional description",
+    "rules": [
+      {
+        "field_path": "customer.email",
+        "display_name": "Customer Email",
+        "validations": [
+          {"type": "required"},
+          {"type": "email"}
+        ]
+      },
+      {
+        "field_path": "order.amount",
+        "validations": [
+          {"type": "required"},
+          {"type": "odata_edm_decimal", "precision": 13, "scale": 2},
+          {"type": "min_value", "value": 0}
+        ]
+      }
+    ],
+    "group_rules": [
+      {
+        "name": "Phone or Email required",
+        "fields": ["customer.phone", "customer.email"],
+        "rule_type": "at_least_one"
+      }
+    ]
+  }'</div>
+        </div>
+      </div>
+
+      <div class="ark-card">
+        <div class="ark-card-header d-flex align-items-center gap-2">
+          <span class="method-badge post">POST</span>
+          <code>/api/validate/{id}</code>
+          <span class="ms-2 text-muted small">Validate JSON against template by ID</span>
+        </div>
+        <div class="ark-card-body">
+          <div class="code-block">curl -u admin:admin123 -X POST http://localhost:5000/api/validate/1 \
+  -H "Content-Type: application/json" \
+  -d '{"customer": {"email": "john@example.com"}, "order": {"amount": 99.99}}'</div>
+          <p class="mt-3 mb-1 text-muted small">Example response (200 — valid):</p>
+          <div class="code-block">{
+  "valid": true,
+  "template_name": "My Template",
+  "summary": {"total_fields": 2, "passed": 2, "failed": 0, ...},
+  "field_results": [...],
+  "group_results": [...]
+}</div>
+          <p class="mt-3 mb-1 text-muted small">Example response (422 — invalid):</p>
+          <div class="code-block">{
+  "valid": false,
+  "template_name": "My Template",
+  "summary": {"total_fields": 2, "passed": 1, "failed": 1, ...},
+  "field_results": [
+    {"field_path": "customer.email", "valid": false, "errors": ["Invalid email address: bad-email"], ...}
+  ],
+  ...
+}</div>
+        </div>
+      </div>
+
+      <div class="ark-card">
+        <div class="ark-card-header d-flex align-items-center gap-2">
+          <span class="method-badge post">POST</span>
+          <code>/api/validate/by-name/{name}</code>
+          <span class="ms-2 text-muted small">Validate JSON against template by name</span>
+        </div>
+        <div class="ark-card-body">
+          <div class="code-block">curl -u admin:admin123 -X POST "http://localhost:5000/api/validate/by-name/My%20Template" \
+  -H "Content-Type: application/json" \
+  -d '{"customer": {"email": "john@example.com"}}'</div>
+        </div>
+      </div>
+
+      <div class="ark-card">
+        <div class="ark-card-header d-flex align-items-center gap-2">
+          <span class="method-badge put">PUT</span>
+          <code>/api/templates/{id}</code>
+          &nbsp;
+          <span class="method-badge delete">DELETE</span>
+          <code>/api/templates/{id}</code>
+        </div>
+        <div class="ark-card-body">
+          <div class="code-block"># Update
+curl -u admin:admin123 -X PUT http://localhost:5000/api/templates/1 \
+  -H "Content-Type: application/json" -d '{...same as POST...}'
+
+# Delete
+curl -u admin:admin123 -X DELETE http://localhost:5000/api/templates/1</div>
+        </div>
+      </div>
+
+      <div class="ark-card">
+        <div class="ark-card-header"><i class="fas fa-tags me-2 text-primary"></i>Available Validation Types Reference</div>
+        <div class="ark-card-body">
+          <div id="api-catalog-grid" class="catalog-grid"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ══ MODALS ═══════════════════════════════════════════════════════════════ -->
+
+<!-- Rule Editor Modal -->
+<div class="modal fade" id="ruleEditorModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content ark-modal">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-sliders me-2"></i>Edit Validation Rules</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3 mb-3">
+          <div class="col-md-5">
+            <label class="form-label text-muted small">Field Path</label>
+            <input type="text" id="re-field-path" class="form-control" readonly />
+          </div>
+          <div class="col-md-5">
+            <label class="form-label text-muted small">Display Name</label>
+            <input type="text" id="re-display-name" class="form-control" placeholder="Friendly name (optional)" />
+          </div>
+          <div class="col-md-2 d-flex align-items-end">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="re-optional" />
+              <label class="form-check-label small" for="re-optional">Optional</label>
+            </div>
+          </div>
+        </div>
+        <hr class="ark-divider" />
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <span class="fw-semibold">Validation Rules</span>
+          <button class="btn btn-xs btn-success ms-auto" onclick="addRuleRow()"><i class="fas fa-plus me-1"></i>Add Rule</button>
+        </div>
+        <div id="re-rules-list" class="d-flex flex-column gap-2"></div>
+        <div id="re-rules-empty" class="empty-state-sm mt-2"><i class="fas fa-info-circle"></i> No rules yet — click "Add Rule"</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="saveRuleEditor()"><i class="fas fa-floppy-disk me-1"></i>Save Rules</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Field Modal -->
+<div class="modal fade" id="addFieldModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content ark-modal">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Add Field Manually</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Field Path <span class="text-danger">*</span></label>
+          <input type="text" id="af-path" class="form-control" placeholder="e.g. customer.email or items[0].price" />
+          <div class="form-text">Use dot notation for nested fields</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Display Name</label>
+          <input type="text" id="af-display" class="form-control" placeholder="Human-friendly label" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="confirmAddField()">Add Field</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Group Rule Modal -->
+<div class="modal fade" id="groupRuleModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content ark-modal">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-object-group me-2"></i>Group Rule</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Rule Name</label>
+          <input type="text" id="gr-name" class="form-control" placeholder="e.g. Phone or Email required" />
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Rule Type <span class="text-danger">*</span></label>
+          <select id="gr-type" class="form-select">
+            <option value="at_least_one">At least one field must have a value</option>
+            <option value="exactly_one">Exactly one field must have a value</option>
+            <option value="all_or_none">All fields or none must have values</option>
+            <option value="mutually_exclusive">Mutually exclusive (at most one)</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Fields <span class="text-danger">*</span></label>
+          <div id="gr-fields-container" class="d-flex flex-column gap-2"></div>
+          <button class="btn btn-xs btn-outline-success mt-2" onclick="addGrField()"><i class="fas fa-plus me-1"></i>Add Field</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="saveGroupRule()">Save Group Rule</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content ark-modal">
+      <div class="modal-header border-0">
+        <h5 class="modal-title text-danger"><i class="fas fa-triangle-exclamation me-2"></i>Delete Template</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>Delete <strong id="delete-template-name"></strong>? This cannot be undone.</p>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="delete-confirm-btn">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TOAST ════════════════════════════════════════════════════════════════ -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999">
+  <div id="mainToast" class="toast align-items-center border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body" id="toast-body"></div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
