@@ -1,0 +1,76 @@
+@model McpServiceViewModel
+@{
+    ViewData["Title"] = "Register MCP Service";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-plus-circle"></i> Register New MCP Service</h4>
+            </div>
+            <div class="card-body">
+                <form asp-action="Create" method="post">
+                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="Name" class="form-label fw-bold"></label>
+                        <input asp-for="Name" class="form-control" placeholder="e.g., Weather MCP Server" />
+                        <span asp-validation-for="Name" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label fw-bold"></label>
+                        <textarea asp-for="Description" class="form-control" rows="3" placeholder="Describe what this MCP service provides..."></textarea>
+                        <span asp-validation-for="Description" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="EndpointUrl" class="form-label fw-bold"></label>
+                        <input asp-for="EndpointUrl" class="form-control" placeholder="https://api.example.com/mcp" />
+                        <span asp-validation-for="EndpointUrl" class="text-danger"></span>
+                        <div class="form-text">The base URL where your MCP server is hosted.</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Domain" class="form-label fw-bold"></label>
+                            <input asp-for="Domain" class="form-control" placeholder="e.g., Weather, Finance, Database" />
+                            <span asp-validation-for="Domain" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="AuthenticationType" class="form-label fw-bold"></label>
+                            <select asp-for="AuthenticationType" class="form-select" id="authType">
+                                <option value="None">None - Public Access</option>
+                                <option value="ApiKey">API Key</option>
+                                <option value="OAuth">OAuth 2.0</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3" id="apiKeyHeaderDiv" style="display: none;">
+                        <label asp-for="ApiKeyHeader" class="form-label fw-bold"></label>
+                        <input asp-for="ApiKeyHeader" class="form-control" placeholder="X-API-Key" />
+                        <div class="form-text">Header name for API key (e.g., X-API-Key, Authorization)</div>
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-save"></i> Register Service
+                        </button>
+                        <a asp-action="Index" class="btn btn-secondary btn-lg">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        $('#authType').change(function() {
+            $('#apiKeyHeaderDiv').toggle($(this).val() === 'ApiKey');
+        });
+    </script>
+}

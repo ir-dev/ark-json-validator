@@ -1,0 +1,74 @@
+@model VerifyOtpViewModel
+@{
+    ViewData["Title"] = "Verify OTP";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-lg border-0 rounded-4">
+            <div class="card-header bg-success text-white text-center rounded-top-4 py-4">
+                <i class="fas fa-shield-alt fa-3x mb-2"></i>
+                <h3 class="mb-0">Verify OTP</h3>
+                <p class="mb-0 opacity-75">Enter the 6-digit code sent to @Model.Email</p>
+            </div>
+            <div class="card-body p-5">
+                <form asp-action="VerifyOtp" method="post">
+                    <input type="hidden" asp-for="Email" />
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                    
+                    <div class="mb-4">
+                        <label asp-for="OtpCode" class="form-label fw-bold"></label>
+                        <input asp-for="OtpCode" class="form-control form-control-lg text-center otp-input" 
+                               maxlength="6" placeholder="000000" autofocus />
+                        <span asp-validation-for="OtpCode" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-4 form-check">
+                        <input asp-for="RememberMe" class="form-check-input" />
+                        <label asp-for="RememberMe" class="form-check-label">Remember me on this device</label>
+                    </div>
+
+                    <button type="submit" class="btn btn-success btn-lg w-100">
+                        <i class="fas fa-check-circle"></i> Verify & Sign In
+                    </button>
+                </form>
+
+                <hr class="my-4" />
+
+                <div class="text-center">
+                    <a href="#" id="resendOtpLink" class="text-decoration-none" data-email="@Model.Email">
+                        <i class="fas fa-redo-alt"></i> Resend OTP
+                    </a>
+                    <div class="mt-2">
+                        <a asp-action="Login" class="text-muted small">Use different email</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        $(document).ready(function() {
+            $('#resendOtpLink').click(function(e) {
+                e.preventDefault();
+                var email = $(this).data('email');
+                var $link = $(this);
+                
+                $link.html('<i class="fas fa-spinner fa-spin"></i> Sending...').addClass('disabled');
+                
+                $.post('/Account/ResendOtp', { email: email })
+                    .done(function(response) {
+                        alert('OTP resent successfully! Check your email.');
+                        $link.html('<i class="fas fa-redo-alt"></i> Resend OTP').removeClass('disabled');
+                    })
+                    .fail(function() {
+                        alert('Failed to resend OTP. Please try again.');
+                        $link.html('<i class="fas fa-redo-alt"></i> Resend OTP').removeClass('disabled');
+                    });
+            });
+        });
+    </script>
+}

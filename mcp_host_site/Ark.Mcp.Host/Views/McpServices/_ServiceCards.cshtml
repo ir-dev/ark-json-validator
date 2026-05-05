@@ -1,0 +1,37 @@
+@model IEnumerable<McpService>
+
+<div class="row">
+    @foreach (var service in Model)
+    {
+        <div class="col-md-6 col-lg-4 mb-4 service-card" 
+             data-name="@service.Name" 
+             data-description="@service.Description" 
+             data-domain="@service.Domain">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-microchip text-primary"></i> @service.Name
+                    </h5>
+                    <h6 class="card-subtitle mb-2 text-muted">
+                        by @service.Owner.Email
+                    </h6>
+                    <p class="card-text">@(string.IsNullOrEmpty(service.Description) ? "No description provided" : service.Description)</p>
+                    <hr />
+                    <div class="mb-2">
+                        <i class="fas fa-link"></i> 
+                        <a href="@service.EndpointUrl" target="_blank">@service.EndpointUrl</a>
+                    </div>
+                    <div class="mb-2">
+                        <i class="fas fa-tag"></i> @(string.IsNullOrEmpty(service.Domain) ? "General" : service.Domain)
+                    </div>
+                    <div>
+                        <i class="fas fa-shield-alt"></i> @service.AuthenticationType
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <small class="text-muted">Added: @service.CreatedAt.ToString("MMM dd, yyyy")</small>
+                </div>
+            </div>
+        </div>
+    }
+</div>

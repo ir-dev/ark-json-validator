@@ -1,19 +1,46 @@
+﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ArkJsonValidator", "ArkJsonValidator\ArkJsonValidator.csproj", "{D1A23B22-156F-FC5A-93F8-84568985A7EE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ark.Mcp.Host", "..\mcp_host_site\Ark.Mcp.Host\Ark.Mcp.Host.csproj", "{1489EE8E-3019-4F91-B8C9-CA303B2AC768}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
 		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{D1A23B22-156F-FC5A-93F8-84568985A7EE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{D1A23B22-156F-FC5A-93F8-84568985A7EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1A23B22-156F-FC5A-93F8-84568985A7EE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D1A23B22-156F-FC5A-93F8-84568985A7EE}.Debug|x64.Build.0 = Debug|Any CPU
+		{D1A23B22-156F-FC5A-93F8-84568985A7EE}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D1A23B22-156F-FC5A-93F8-84568985A7EE}.Debug|x86.Build.0 = Debug|Any CPU
 		{D1A23B22-156F-FC5A-93F8-84568985A7EE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D1A23B22-156F-FC5A-93F8-84568985A7EE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D1A23B22-156F-FC5A-93F8-84568985A7EE}.Release|x64.ActiveCfg = Release|Any CPU
+		{D1A23B22-156F-FC5A-93F8-84568985A7EE}.Release|x64.Build.0 = Release|Any CPU
+		{D1A23B22-156F-FC5A-93F8-84568985A7EE}.Release|x86.ActiveCfg = Release|Any CPU
+		{D1A23B22-156F-FC5A-93F8-84568985A7EE}.Release|x86.Build.0 = Release|Any CPU
+		{1489EE8E-3019-4F91-B8C9-CA303B2AC768}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1489EE8E-3019-4F91-B8C9-CA303B2AC768}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1489EE8E-3019-4F91-B8C9-CA303B2AC768}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1489EE8E-3019-4F91-B8C9-CA303B2AC768}.Debug|x64.Build.0 = Debug|Any CPU
+		{1489EE8E-3019-4F91-B8C9-CA303B2AC768}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1489EE8E-3019-4F91-B8C9-CA303B2AC768}.Debug|x86.Build.0 = Debug|Any CPU
+		{1489EE8E-3019-4F91-B8C9-CA303B2AC768}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1489EE8E-3019-4F91-B8C9-CA303B2AC768}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1489EE8E-3019-4F91-B8C9-CA303B2AC768}.Release|x64.ActiveCfg = Release|Any CPU
+		{1489EE8E-3019-4F91-B8C9-CA303B2AC768}.Release|x64.Build.0 = Release|Any CPU
+		{1489EE8E-3019-4F91-B8C9-CA303B2AC768}.Release|x86.ActiveCfg = Release|Any CPU
+		{1489EE8E-3019-4F91-B8C9-CA303B2AC768}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

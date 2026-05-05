@@ -1,0 +1,81 @@
+﻿@model IEnumerable<McpService>
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-tachometer-alt"></i> Welcome to MCP Service Hub</h2>
+        <p class="lead">Manage your Model Context Protocol servers and discover services from other developers.</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h5 class="card-title">My Services</h5>
+                <h2 class="display-4">@ViewBag.MyServicesCount</h2>
+                <a asp-controller="McpServices" asp-action="Index" class="btn btn-light mt-2">Manage</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h5 class="card-title">Total Services</h5>
+                <h2 class="display-4">@ViewBag.TotalServicesCount</h2>
+                <a asp-controller="McpServices" asp-action="Browse" class="btn btn-light mt-2">Discover</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h5 class="card-title">Active Developers</h5>
+                <h2 class="display-4">@ViewBag.DevelopersCount</h2>
+                <p class="mb-0">Registered users</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-clock"></i> Recently Added MCP Services</h5>
+    </div>
+    <div class="card-body">
+        @if (!Model.Any())
+        {
+            <p class="text-muted mb-0">No services registered yet. Be the first to register an MCP service!</p>
+        }
+        else
+        {
+            <div class="list-group">
+                @foreach (var service in Model)
+                {
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">
+                                    <i class="fas fa-microchip"></i> @service.Name
+                                </h6>
+                                <p class="mb-1 small text-muted">@service.Description</p>
+                                <small>Owner: @service.Owner.Email | Domain: @(string.IsNullOrEmpty(service.Domain) ? "General" : service.Domain)</small>
+                            </div>
+                            <div>
+                                <a asp-controller="McpServices" asp-action="Details" asp-route-id="@service.Id" class="btn btn-sm btn-outline-primary">
+                                    View Details
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@{
+    // Add counts to ViewBag in HomeController
+}

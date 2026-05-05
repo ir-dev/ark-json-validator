@@ -1,0 +1,54 @@
+@model IEnumerable<McpService>
+@{
+    ViewData["Title"] = "Browse MCP Services";
+}
+
+<h2 class="mb-4"><i class="fas fa-globe me-2"></i>Discover MCP Services</h2>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="input-group">
+            <input type="text" id="searchInput" class="form-control" placeholder="Search by name, domain, or description...">
+            <button class="btn btn-outline-primary" type="button" onclick="filterServices()">
+                <i class="fas fa-search"></i> Search
+            </button>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <select id="domainFilter" class="form-select" onchange="filterServices()">
+            <option value="">All Domains</option>
+            @{
+                var domains = Model.Select(s => s.Domain).Distinct().Where(d => !string.IsNullOrEmpty(d));
+                foreach (var domain in domains)
+                {
+                    <option value="@domain">@domain</option>
+                }
+            }
+        </select>
+    </div>
+</div>
+
+<div id="servicesContainer">
+    @await Html.PartialAsync("_ServiceCards", Model)
+</div>
+
+@section Scripts {
+    <script>
+        function filterServices() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const domain = document.getElementById('domainFilter').value;
+            
+            const cards = document.querySelectorAll('.service-card');
+            cards.forEach(card => {
+                const name = card.dataset.name?.toLowerCase() || '';
+                const desc = card.dataset.description?.toLowerCase() || '';
+                const cardDomain = card.dataset.domain || '';
+                
+                const matchesSearch = name.includes(searchTerm) || desc.includes(searchTerm);
+                const matchesDomain = !domain || cardDomain === domain;
+                
+                card.style.display = matchesSearch && matchesDomain ? '' : 'none';
+            });
+        }
+    </script>
+}
