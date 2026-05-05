@@ -1,0 +1,891 @@
+@{
+    ViewData["Title"] = "ARK JSON Validator";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<!-- Tab Nav -->
+<ul class="nav nav-tabs" id="mainTabs" role="tablist">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-builder" type="button"><i class="bi bi-tools me-1"></i>Template Builder</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-validate" type="button"><i class="bi bi-play-circle me-1"></i>Validate JSON</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-templates" type="button"><i class="bi bi-collection me-1"></i>Templates <span class="badge bg-primary rounded-pill ms-1" id="templateCountBadge">0</span></button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-api" type="button" id="api-tab"><i class="bi bi-braces me-1"></i>API &amp; MCP</button></li>
+</ul>
+
+<div class="tab-content" id="mainTabContent">
+
+    <!-- ===== TEMPLATE BUILDER TAB ===== -->
+    <div class="tab-pane fade show active" id="tab-builder">
+        <div class="row g-3">
+            <!-- Left: JSON Input & Field Explorer -->
+            <div class="col-lg-5">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="section-header"><i class="bi bi-filetype-json me-1"></i>Sample JSON</span>
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="loadSampleJson('basic')">Basic</button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="loadSampleJson('sap')">SAP</button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="exploreFields()"><i class="bi bi-search me-1"></i>Explore Fields</button>
+                    </div>
+                </div>
+                <div id="sampleJsonEditor"></div>
+
+                <div class="mt-3">
+                    <span class="section-header"><i class="bi bi-diagram-3 me-1"></i>Discovered Fields <span class="text-muted fw-normal">(click to add rule)</span></span>
+                    <div class="field-tree mt-1" id="fieldTree">
+                        <div class="text-center py-4 text-muted small">Paste JSON above and click <strong>Explore Fields</strong></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Rule Builder & Template Meta -->
+            <div class="col-lg-7">
+                <!-- Template Metadata -->
+                <div class="card mb-3">
+                    <div class="card-body py-2">
+                        <div class="row g-2">
+                            <div class="col-md-5">
+                                <input type="text" class="form-control form-control-sm" id="templateName" placeholder="Template name *">
+                            </div>
+                            <div class="col-md-5">
+                                <input type="text" class="form-control form-control-sm" id="templateDescription" placeholder="Description">
+                            </div>
+                            <div class="col-md-2">
+                                <input type="text" class="form-control form-control-sm" id="templateTags" placeholder="Tags">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Field Rules -->
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="section-header"><i class="bi bi-list-check me-1"></i>Field Rules <span class="badge bg-secondary ms-1" id="ruleCount">0</span></span>
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-sm btn-outline-warning" onclick="addGroupRule()"><i class="bi bi-collection me-1"></i>Add Group Rule</button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="openAddRuleModal()"><i class="bi bi-plus-circle me-1"></i>Add Rule</button>
+                    </div>
+                </div>
+                <div id="rulesList" style="min-height:120px;">
+                    <div class="text-center py-4 text-muted small" id="rulesEmpty"><i class="bi bi-inbox fs-4 d-block mb-2 opacity-50"></i>No rules yet — explore fields or click Add Rule</div>
+                </div>
+
+                <!-- Group Rules -->
+                <div id="groupRulesSection" class="mt-2 d-none">
+                    <span class="section-header"><i class="bi bi-diagram-2 me-1"></i>Group Rules</span>
+                    <div id="groupRulesList"></div>
+                </div>
+
+                <!-- Save Actions -->
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-success px-4" onclick="saveTemplate()"><i class="bi bi-floppy me-1"></i>Save Template</button>
+                    <button class="btn btn-outline-secondary" onclick="clearBuilder()"><i class="bi bi-trash me-1"></i>Clear</button>
+                    <button class="btn btn-outline-info ms-auto" onclick="previewTemplate()"><i class="bi bi-eye me-1"></i>Preview JSON</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== VALIDATE TAB ===== -->
+    <div class="tab-pane fade" id="tab-validate">
+        <div class="row g-3">
+            <div class="col-lg-6">
+                <span class="section-header"><i class="bi bi-filetype-json me-1"></i>JSON to Validate</span>
+                <div id="validateJsonEditor" class="cm-large mt-1"></div>
+                <div class="d-flex gap-2 mt-2 align-items-center">
+                    <select class="form-select form-select-sm" id="validateTemplate" style="max-width:280px">
+                        <option value="">— Select template —</option>
+                    </select>
+                    <div class="form-check form-check-inline ms-1 mb-0">
+                        <input class="form-check-input" type="checkbox" id="stopOnFirst">
+                        <label class="form-check-label small" for="stopOnFirst">Stop on first error</label>
+                    </div>
+                    <button class="btn btn-primary ms-auto" onclick="runValidation()">
+                        <i class="bi bi-play-fill me-1"></i>Validate
+                        <span class="spinner-border spinner-sm ms-1 d-none" id="validateSpinner"></span>
+                    </button>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <span class="section-header"><i class="bi bi-clipboard-check me-1"></i>Validation Results</span>
+                <div id="validationResults" class="mt-1">
+                    <div class="text-center py-5 text-muted small opacity-50"><i class="bi bi-shield-slash fs-3 d-block mb-2"></i>Run validation to see results</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== TEMPLATES TAB ===== -->
+    <div class="tab-pane fade" id="tab-templates">
+        <div class="row g-3">
+            <div class="col-lg-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="section-header"><i class="bi bi-collection me-1"></i>Saved Templates</span>
+                    <button class="btn btn-sm btn-outline-primary" onclick="loadTemplates()"><i class="bi bi-arrow-clockwise"></i></button>
+                </div>
+                <input type="text" class="form-control form-control-sm mb-2" id="templateSearch" placeholder="Search templates..." oninput="filterTemplates()">
+                <div id="templatesList" style="max-height:520px;overflow-y:auto;"></div>
+            </div>
+            <div class="col-lg-8">
+                <div id="templateDetail" class="text-center py-5 text-muted opacity-50">
+                    <i class="bi bi-file-earmark-text fs-3 d-block mb-2"></i>Select a template to view details
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== API & MCP TAB ===== -->
+    <div class="tab-pane fade" id="tab-api">
+        <div class="row g-3">
+            <div class="col-lg-4">
+                <!-- Stats -->
+                <div class="row g-2 mb-3">
+                    <div class="col-4"><div class="sidebar-stat"><div class="number" id="statValidators">37</div><div class="label">Validators</div></div></div>
+                    <div class="col-4"><div class="sidebar-stat"><div class="number" id="statTemplates">0</div><div class="label">Templates</div></div></div>
+                    <div class="col-4"><div class="sidebar-stat"><div class="number">7</div><div class="label">MCP Tools</div></div></div>
+                </div>
+                <!-- MCP Config -->
+                <div class="card mb-3">
+                    <div class="card-header py-2"><i class="bi bi-plug me-1 text-primary"></i><strong class="small">MCP Server Config</strong></div>
+                    <div class="card-body py-2">
+                        <p class="small text-muted mb-2">Add to your <code>claude_desktop_config.json</code> or MCP client:</p>
+                        <pre class="api-snippet mb-0" style="font-size:11px">{
+  "mcpServers": {
+    "ark-validator": {
+      "url": "<span id="mcpUrl">http://localhost:5000/mcp</span>",
+      "transport": "http"
+    }
+  }
+}</pre>
+                        <button class="btn btn-sm btn-outline-secondary mt-2 w-100" onclick="copyMcpConfig()"><i class="bi bi-clipboard me-1"></i>Copy Config</button>
+                    </div>
+                </div>
+                <!-- MCP Tools List -->
+                <div class="card">
+                    <div class="card-header py-2"><i class="bi bi-tools me-1 text-warning"></i><strong class="small">MCP Tools</strong></div>
+                    <div class="card-body py-0 px-0">
+                        <div class="list-group list-group-flush rounded-bottom">
+                            <div class="list-group-item bg-transparent border-secondary py-2 px-3 small"><code>validate_json</code><br><span class="text-muted" style="font-size:11px">Validate JSON against a template</span></div>
+                            <div class="list-group-item bg-transparent border-secondary py-2 px-3 small"><code>list_templates</code><br><span class="text-muted" style="font-size:11px">List all available templates</span></div>
+                            <div class="list-group-item bg-transparent border-secondary py-2 px-3 small"><code>get_template</code><br><span class="text-muted" style="font-size:11px">Get full template details</span></div>
+                            <div class="list-group-item bg-transparent border-secondary py-2 px-3 small"><code>create_template</code><br><span class="text-muted" style="font-size:11px">Create a new template</span></div>
+                            <div class="list-group-item bg-transparent border-secondary py-2 px-3 small"><code>delete_template</code><br><span class="text-muted" style="font-size:11px">Delete a template by name</span></div>
+                            <div class="list-group-item bg-transparent border-secondary py-2 px-3 small"><code>get_validation_types</code><br><span class="text-muted" style="font-size:11px">List all validator types</span></div>
+                            <div class="list-group-item bg-transparent border-secondary py-2 px-3 small"><code>check_field</code><br><span class="text-muted" style="font-size:11px">Test a single value inline</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-8">
+                <!-- REST API Docs -->
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="section-header"><i class="bi bi-journal-code me-1"></i>REST API Reference</span>
+                    <span class="badge bg-warning text-dark"><i class="bi bi-lock me-1"></i>Basic Auth Required</span>
+                </div>
+                <div class="small text-muted mb-3">Base URL: <code id="baseUrl">http://localhost:5000</code> &nbsp;|&nbsp; Credentials: <code>admin</code> / <code>ark2024!</code></div>
+
+                <div id="apiDocs"></div>
+
+                <!-- MCP Resources -->
+                <div class="mt-4">
+                    <span class="section-header"><i class="bi bi-database me-1"></i>MCP Resources</span>
+                    <div class="row g-2 mt-1">
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-body py-2 px-3">
+                                    <div class="small fw-semibold text-warning"><i class="bi bi-collection me-1"></i>ark://validation-types/all</div>
+                                    <div class="text-muted" style="font-size:11px">All 37+ validator type definitions with parameters</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-body py-2 px-3">
+                                    <div class="small fw-semibold text-warning"><i class="bi bi-collection me-1"></i>ark://validation-types/sap</div>
+                                    <div class="text-muted" style="font-size:11px">SAP/OData specific validators (14 types)</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-body py-2 px-3">
+                                    <div class="small fw-semibold text-warning"><i class="bi bi-file-earmark me-1"></i>ark://templates/{name}</div>
+                                    <div class="text-muted" style="font-size:11px">Individual template with all rules — discoverable via list</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-body py-2 px-3">
+                                    <div class="small fw-semibold text-warning"><i class="bi bi-list me-1"></i>resource templates list</div>
+                                    <div class="text-muted" style="font-size:11px">URI template for dynamic template resource discovery</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Add Rule Modal -->
+<div class="modal fade" id="addRuleModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="background:var(--ark-surface); border-color:var(--ark-border);">
+            <div class="modal-header border-secondary py-2">
+                <h6 class="modal-title"><i class="bi bi-plus-circle me-2 text-primary"></i>Add Field Validation Rule</h6>
+                <button type="button" class="btn-close btn-close-white btn-sm" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label small">Field Path <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm" id="ruleFieldPath" placeholder="e.g. order.customer.email">
+                        <div class="form-text">Use dot notation for nested fields (e.g. items[0].price)</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small">Validator Type <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-sm" id="ruleValidatorType" onchange="onValidatorTypeChange()">
+                            <option value="">— Choose validator —</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <div id="validatorDescription" class="alert alert-secondary py-2 px-3 small d-none"></div>
+                    </div>
+                    <div id="paramFields" class="col-12"></div>
+                    <div class="col-md-8">
+                        <label class="form-label small">Custom Error Message</label>
+                        <input type="text" class="form-control form-control-sm" id="ruleErrorMessage" placeholder="Leave empty to use default validator message">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <div class="form-check mb-1">
+                            <input class="form-check-input" type="checkbox" id="ruleIsRequired" checked>
+                            <label class="form-check-label small" for="ruleIsRequired">Required</label>
+                        </div>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <div class="w-100">
+                            <label class="form-label small">Order</label>
+                            <input type="number" class="form-control form-control-sm" id="ruleOrder" min="1" value="1">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary py-2">
+                <button class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-sm btn-primary" onclick="confirmAddRule()"><i class="bi bi-plus me-1"></i>Add Rule</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Group Rule Modal -->
+<div class="modal fade" id="groupRuleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" style="background:var(--ark-surface); border-color:var(--ark-border);">
+            <div class="modal-header border-secondary py-2">
+                <h6 class="modal-title"><i class="bi bi-diagram-2 me-2 text-warning"></i>Add Group Rule</h6>
+                <button type="button" class="btn-close btn-close-white btn-sm" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label small">Group Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control form-control-sm" id="grGroupName" placeholder="e.g. ContactInfo">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small">Rule Type <span class="text-danger">*</span></label>
+                    <select class="form-select form-select-sm" id="grGroupType">
+                        <option value="at_least_one">At Least One — at least one field must have a value</option>
+                        <option value="exactly_one">Exactly One — only one field may have a value</option>
+                        <option value="all_or_none">All Or None — either all or no fields have values</option>
+                        <option value="mutually_exclusive">Mutually Exclusive — only one can be set at a time</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small">Field Paths (one per line) <span class="text-danger">*</span></label>
+                    <textarea class="form-control form-control-sm" id="grFieldPaths" rows="4" placeholder="email&#10;phone&#10;username"></textarea>
+                </div>
+                <div class="mb-1">
+                    <label class="form-label small">Custom Error Message</label>
+                    <input type="text" class="form-control form-control-sm" id="grErrorMessage">
+                </div>
+            </div>
+            <div class="modal-footer border-secondary py-2">
+                <button class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-sm btn-warning" onclick="confirmAddGroupRule()"><i class="bi bi-plus me-1"></i>Add Group Rule</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="background:var(--ark-surface); border-color:var(--ark-border);">
+            <div class="modal-header border-secondary py-2">
+                <h6 class="modal-title"><i class="bi bi-eye me-2"></i>Template Preview</h6>
+                <button type="button" class="btn-close btn-close-white btn-sm" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="previewContent"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+// ========== State ==========
+let fieldRules = [];
+let groupRules = [];
+let allValidatorTypes = [];
+let allTemplates = [];
+let editingRuleIndex = -1;
+let sampleJsonCM, validateJsonCM;
+
+// ========== Init ==========
+document.addEventListener('DOMContentLoaded', async () => {
+    sampleJsonCM = CodeMirror(document.getElementById('sampleJsonEditor'), {
+        mode: 'application/json', theme: 'dracula', lineNumbers: true,
+        matchBrackets: true, autoCloseBrackets: true, tabSize: 2, indentWithTabs: false,
+        value: '{\n  "id": 1,\n  "name": "Sample"\n}'
+    });
+    validateJsonCM = CodeMirror(document.getElementById('validateJsonEditor'), {
+        mode: 'application/json', theme: 'dracula', lineNumbers: true,
+        matchBrackets: true, autoCloseBrackets: true, tabSize: 2, indentWithTabs: false,
+        value: '{\n  "id": 1\n}'
+    });
+
+    await Promise.all([loadValidatorTypes(), loadTemplates()]);
+    renderApiDocs();
+    document.getElementById('mcpUrl').textContent = window.location.origin + '/mcp';
+    document.getElementById('baseUrl').textContent = window.location.origin;
+});
+
+// ========== Validator Types ==========
+async function loadValidatorTypes() {
+    const res = await fetch('/api/validate/types', { headers: apiHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    allValidatorTypes = data.validators || [];
+
+    const sel = document.getElementById('ruleValidatorType');
+    const grouped = {};
+    allValidatorTypes.forEach(v => { (grouped[v.category] ??= []).push(v); });
+    Object.entries(grouped).sort().forEach(([cat, types]) => {
+        const grp = document.createElement('optgroup');
+        grp.label = cat;
+        types.forEach(v => { const o = new Option(v.displayName, v.type); grp.appendChild(o); });
+        sel.appendChild(grp);
+    });
+    document.getElementById('statValidators').textContent = allValidatorTypes.length;
+}
+
+// ========== Templates ==========
+async function loadTemplates() {
+    const res = await fetch('/api/templates', { headers: apiHeaders() });
+    if (!res.ok) return;
+    allTemplates = await res.json();
+    renderTemplatesList();
+    updateTemplateSelect();
+    const badge = document.getElementById('templateCountBadge');
+    if (badge) badge.textContent = allTemplates.length;
+    document.getElementById('statTemplates').textContent = allTemplates.length;
+}
+
+function renderTemplatesList() {
+    const container = document.getElementById('templatesList');
+    const q = document.getElementById('templateSearch').value.toLowerCase();
+    const filtered = allTemplates.filter(t =>
+        t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q) || t.tags.toLowerCase().includes(q));
+
+    container.innerHTML = filtered.length === 0
+        ? '<div class="text-center py-4 text-muted small">No templates found</div>'
+        : filtered.map(t => `
+        <div class="template-card card mb-2 fade-in" onclick="showTemplateDetail('${t.name}')">
+          <div class="card-body py-2 px-3">
+            <div class="d-flex justify-content-between align-items-start">
+              <div class="fw-semibold small">${escHtml(t.name)}</div>
+              <div class="d-flex gap-1">
+                <span class="badge bg-primary bg-opacity-25 text-primary">${t.fieldRuleCount} rules</span>
+                ${t.groupRuleCount > 0 ? `<span class="badge bg-warning bg-opacity-25 text-warning">${t.groupRuleCount} groups</span>` : ''}
+              </div>
+            </div>
+            ${t.description ? `<div class="text-muted" style="font-size:11px">${escHtml(t.description)}</div>` : ''}
+            ${t.tags ? `<div class="mt-1">${t.tags.split(',').map(tg => `<span class="tag-badge me-1">${escHtml(tg.trim())}</span>`).join('')}</div>` : ''}
+          </div>
+        </div>`).join('');
+}
+
+function filterTemplates() { renderTemplatesList(); }
+
+function updateTemplateSelect() {
+    const sel = document.getElementById('validateTemplate');
+    sel.innerHTML = '<option value="">— Select template —</option>';
+    allTemplates.forEach(t => sel.appendChild(new Option(t.name, t.name)));
+}
+
+async function showTemplateDetail(name) {
+    document.querySelectorAll('.template-card').forEach(c => c.classList.remove('selected'));
+    event?.currentTarget?.classList.add('selected');
+
+    const res = await fetch(`/api/templates/${encodeURIComponent(name)}`, { headers: apiHeaders() });
+    if (!res.ok) return;
+    const t = await res.json();
+
+    const catColor = c => ({ 'General': 'primary', 'String': 'warning', 'Numeric': 'success', 'Format': 'info', 'Date/Time': 'orange', 'SAP / OData': 'warning' }[c] || 'secondary');
+
+    document.getElementById('templateDetail').innerHTML = `
+      <div class="fade-in">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <h5 class="mb-1">${escHtml(t.name)}</h5>
+            <div class="text-muted small">${escHtml(t.description || '')}</div>
+            <div class="mt-1">${(t.tags||'').split(',').filter(Boolean).map(tg => `<span class="tag-badge me-1">${escHtml(tg.trim())}</span>`).join('')}</div>
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-primary" onclick="loadTemplateIntoBuilder('${escHtml(name)}')"><i class="bi bi-pencil me-1"></i>Edit</button>
+            <button class="btn btn-sm btn-outline-danger" onclick="deleteTemplate('${escHtml(name)}')"><i class="bi bi-trash me-1"></i>Delete</button>
+          </div>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-3"><div class="sidebar-stat"><div class="number text-primary">${t.fieldRules.length}</div><div class="label">Field Rules</div></div></div>
+          <div class="col-3"><div class="sidebar-stat"><div class="number text-warning">${t.groupRules.length}</div><div class="label">Group Rules</div></div></div>
+          <div class="col-6"><div class="sidebar-stat text-start ps-3"><div class="label">Created</div><div class="small">${new Date(t.createdAt).toLocaleDateString()}</div><div class="label mt-1">Updated</div><div class="small">${new Date(t.updatedAt).toLocaleDateString()}</div></div></div>
+        </div>
+        ${t.fieldRules.length > 0 ? `
+        <div class="section-header">Field Rules</div>
+        ${t.fieldRules.map(r => `
+          <div class="rule-card d-flex align-items-center gap-2">
+            <span class="badge bg-secondary font-monospace">#${r.order}</span>
+            <code class="text-warning flex-grow-1">${escHtml(r.fieldPath)}</code>
+            <span class="badge bg-${catColor(allValidatorTypes.find(v=>v.type===r.validatorType)?.category)}">${escHtml(r.validatorType)}</span>
+            ${!r.isRequired ? '<span class="badge bg-secondary">optional</span>' : ''}
+            ${r.errorMessage ? `<span class="text-muted small text-truncate" style="max-width:180px" title="${escHtml(r.errorMessage)}">${escHtml(r.errorMessage)}</span>` : ''}
+          </div>`).join('')}` : ''}
+        ${t.groupRules.length > 0 ? `
+        <div class="section-header mt-3">Group Rules</div>
+        ${t.groupRules.map(g => `
+          <div class="rule-card">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-diagram-2 text-warning"></i>
+              <strong class="small">${escHtml(g.groupName)}</strong>
+              <span class="badge bg-warning text-dark">${escHtml(g.groupValidatorType)}</span>
+            </div>
+            <div class="text-muted small mt-1">${g.fieldPaths.map(f => `<code>${escHtml(f)}</code>`).join(' ')}</div>
+          </div>`).join('')}` : ''}
+      </div>`;
+}
+
+async function deleteTemplate(name) {
+    if (!confirm(`Delete template "${name}"?`)) return;
+    const res = await fetch(`/api/templates/${encodeURIComponent(name)}`, { method: 'DELETE', headers: apiHeaders() });
+    if (res.ok || res.status === 204) {
+        toast('Template deleted', 'success');
+        document.getElementById('templateDetail').innerHTML = '<div class="text-center py-5 text-muted opacity-50"><i class="bi bi-file-earmark-text fs-3 d-block mb-2"></i>Select a template</div>';
+        await loadTemplates();
+    } else toast('Failed to delete template', 'danger');
+}
+
+async function loadTemplateIntoBuilder(name) {
+    const res = await fetch(`/api/templates/${encodeURIComponent(name)}`, { headers: apiHeaders() });
+    if (!res.ok) return;
+    const t = await res.json();
+
+    document.getElementById('templateName').value = t.name;
+    document.getElementById('templateDescription').value = t.description;
+    document.getElementById('templateTags').value = t.tags;
+    fieldRules = t.fieldRules;
+    groupRules = t.groupRules;
+    renderRulesList();
+
+    // Switch to builder tab
+    document.querySelector('[data-bs-target="#tab-builder"]').click();
+    toast(`Template "${name}" loaded for editing`);
+}
+
+// ========== Field Explorer ==========
+function exploreFields() {
+    let json;
+    try { json = JSON.parse(sampleJsonCM.getValue()); } catch { toast('Invalid JSON', 'danger'); return; }
+    const fields = [];
+    flattenFields(json, '', fields);
+    const tree = document.getElementById('fieldTree');
+    if (!fields.length) { tree.innerHTML = '<div class="text-center py-3 text-muted small">No fields found</div>'; return; }
+    tree.innerHTML = fields.map(f => `
+      <div class="field-tree-item" onclick="addRuleForField('${escHtml(f.path)}')">
+        <i class="bi bi-${f.type === 'object' ? 'braces' : f.type === 'array' ? 'list-ul' : 'fonts'} text-muted" style="font-size:12px"></i>
+        <span class="field-path">${escHtml(f.path)}</span>
+        <span class="field-type">${f.type}</span>
+        <span class="ms-auto text-muted" style="font-size:10px">${f.example !== undefined ? JSON.stringify(f.example).substring(0,25) : ''}</span>
+        <i class="bi bi-plus-circle text-primary opacity-0" style="font-size:12px" id="plus-${f.path.replace(/\./g,'-')}"></i>
+      </div>`).join('');
+    tree.querySelectorAll('.field-tree-item').forEach(el => {
+        el.addEventListener('mouseenter', () => el.querySelector('.bi-plus-circle')?.classList.replace('opacity-0','opacity-100'));
+        el.addEventListener('mouseleave', () => el.querySelector('.bi-plus-circle')?.classList.replace('opacity-100','opacity-0'));
+    });
+}
+
+function flattenFields(obj, prefix, result, depth = 0) {
+    if (depth > 5) return;
+    if (obj === null || obj === undefined) return;
+    if (Array.isArray(obj)) {
+        if (obj.length > 0 && typeof obj[0] === 'object') flattenFields(obj[0], prefix + '[0]', result, depth + 1);
+        else result.push({ path: prefix, type: 'array', example: obj.slice(0,2) });
+        return;
+    }
+    if (typeof obj === 'object') {
+        if (prefix) result.push({ path: prefix, type: 'object', example: null });
+        Object.entries(obj).forEach(([k, v]) => flattenFields(v, prefix ? `${prefix}.${k}` : k, result, depth + 1));
+    } else {
+        result.push({ path: prefix, type: typeof obj, example: obj });
+    }
+}
+
+function loadSampleJson(type) {
+    const samples = {
+        basic: `{
+  "id": "USR-001",
+  "email": "john.doe@example.com",
+  "username": "johndoe",
+  "phone": "+1-555-123-4567",
+  "age": 25,
+  "website": "https://example.com",
+  "role": "admin",
+  "address": {
+    "country": "US",
+    "zipcode": "10001"
+  },
+  "createdAt": "2024-01-15T10:30:00Z"
+}`,
+        sap: `{
+  "PurchaseOrder": "4500000001",
+  "CompanyCode": "1000",
+  "Vendor": "0000001234",
+  "Currency": "USD",
+  "PostingDate": "/Date(1706227200000)/",
+  "DocumentDate": "/Date(1706227200000)/",
+  "Plant": "1000",
+  "MaterialNumber": "000000000000010023",
+  "CostCenter": "1000000001",
+  "ProfitCenter": "PC001",
+  "CountryKey": "US",
+  "LanguageKey": "EN",
+  "CreatedByUser": "JDOE",
+  "SalesOrder": "0000004321",
+  "ObjectGuid": "guid'550e8400-e29b-41d4-a716-446655440000'"
+}`
+    };
+    sampleJsonCM.setValue(samples[type] || '{}');
+    exploreFields();
+}
+
+// ========== Rule Management ==========
+function addRuleForField(path) {
+    document.getElementById('ruleFieldPath').value = path;
+    document.getElementById('ruleOrder').value = fieldRules.length + 1;
+    openAddRuleModal();
+}
+
+function openAddRuleModal() {
+    editingRuleIndex = -1;
+    document.getElementById('ruleFieldPath').value = document.getElementById('ruleFieldPath').value || '';
+    document.getElementById('ruleValidatorType').value = '';
+    document.getElementById('ruleErrorMessage').value = '';
+    document.getElementById('ruleIsRequired').checked = true;
+    document.getElementById('ruleOrder').value = fieldRules.length + 1;
+    document.getElementById('paramFields').innerHTML = '';
+    document.getElementById('validatorDescription').classList.add('d-none');
+    new bootstrap.Modal('#addRuleModal').show();
+}
+
+function onValidatorTypeChange() {
+    const type = document.getElementById('ruleValidatorType').value;
+    const info = allValidatorTypes.find(v => v.type === type);
+    const desc = document.getElementById('validatorDescription');
+    const params = document.getElementById('paramFields');
+
+    if (!info) { desc.classList.add('d-none'); params.innerHTML = ''; return; }
+
+    desc.classList.remove('d-none');
+    desc.innerHTML = `<i class="bi bi-info-circle me-1"></i><strong>${info.displayName}</strong> — ${info.description}${info.exampleValue ? ` <span class="text-muted ms-2">e.g. <code>${escHtml(info.exampleValue)}</code></span>` : ''}`;
+
+    params.innerHTML = info.parameters.length === 0 ? '' : `
+      <div class="col-12"><span class="section-header">Parameters</span>
+        <div class="row g-2 mt-0">
+          ${info.parameters.map(p => `
+            <div class="col-md-4">
+              <label class="form-label small">${p.name} ${p.required ? '<span class="text-danger">*</span>' : '<span class="text-muted">(optional)</span>'}</label>
+              ${p.type === 'boolean' ? `
+                <select class="form-select form-select-sm" id="param_${p.name}">
+                  <option value="">default</option><option value="true">true</option><option value="false">false</option>
+                </select>` : p.type === 'array' ? `
+                <input type="text" class="form-control form-control-sm" id="param_${p.name}" placeholder="${p.description} (comma-separated)">` : `
+                <input type="${p.type === 'number' ? 'number' : 'text'}" class="form-control form-control-sm" id="param_${p.name}"
+                  placeholder="${p.defaultValue !== undefined ? 'Default: ' + p.defaultValue : p.description}">
+              `}
+              <div class="form-text">${p.description}</div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+}
+
+function confirmAddRule() {
+    const path = document.getElementById('ruleFieldPath').value.trim();
+    const type = document.getElementById('ruleValidatorType').value;
+    if (!path) { toast('Field path is required', 'warning'); return; }
+    if (!type) { toast('Validator type is required', 'warning'); return; }
+
+    const info = allValidatorTypes.find(v => v.type === type);
+    const parameters = {};
+    info?.parameters.forEach(p => {
+        const el = document.getElementById(`param_${p.name}`);
+        if (el?.value) {
+            if (p.type === 'number') parameters[p.name] = Number(el.value);
+            else if (p.type === 'boolean') parameters[p.name] = el.value === 'true';
+            else if (p.type === 'array') parameters[p.name] = el.value.split(',').map(s => s.trim());
+            else parameters[p.name] = el.value;
+        }
+    });
+
+    const rule = {
+        fieldPath: path,
+        validatorType: type,
+        parameters: Object.keys(parameters).length > 0 ? parameters : null,
+        errorMessage: document.getElementById('ruleErrorMessage').value.trim(),
+        isRequired: document.getElementById('ruleIsRequired').checked,
+        order: parseInt(document.getElementById('ruleOrder').value) || fieldRules.length + 1
+    };
+
+    if (editingRuleIndex >= 0) fieldRules[editingRuleIndex] = rule;
+    else fieldRules.push(rule);
+
+    bootstrap.Modal.getInstance('#addRuleModal').hide();
+    renderRulesList();
+    toast(`Rule added: ${path} → ${type}`);
+}
+
+function renderRulesList() {
+    const container = document.getElementById('rulesList');
+    document.getElementById('ruleCount').textContent = fieldRules.length;
+    document.getElementById('rulesEmpty').style.display = fieldRules.length ? 'none' : '';
+
+    const catClass = c => ({ 'General': 'cat-general', 'String': 'cat-string', 'Numeric': 'cat-numeric', 'Format': 'cat-format', 'Date/Time': 'cat-datetime', 'SAP / OData': 'cat-sap' }[c] || 'cat-general');
+    const catOf = type => allValidatorTypes.find(v => v.type === type)?.category || 'General';
+
+    container.innerHTML = fieldRules.sort((a,b) => a.order - b.order).map((r, i) => `
+      <div class="rule-card d-flex align-items-center gap-2 fade-in">
+        <span class="text-muted small" style="min-width:20px">${i+1}</span>
+        <code class="text-warning flex-grow-1 text-truncate" style="max-width:180px">${escHtml(r.fieldPath)}</code>
+        <span class="validator-chip ${catClass(catOf(r.validatorType))}">${escHtml(r.validatorType)}</span>
+        ${!r.isRequired ? '<span class="badge bg-secondary rule-badge">optional</span>' : ''}
+        ${r.errorMessage ? `<span class="text-muted text-truncate d-none d-md-inline" style="font-size:11px;max-width:140px">${escHtml(r.errorMessage)}</span>` : ''}
+        <div class="ms-auto d-flex gap-1">
+          <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="editRule(${i})" title="Edit"><i class="bi bi-pencil" style="font-size:11px"></i></button>
+          <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="removeRule(${i})" title="Remove"><i class="bi bi-x-lg" style="font-size:11px"></i></button>
+        </div>
+      </div>`).join('');
+}
+
+function editRule(idx) {
+    editingRuleIndex = idx;
+    const r = fieldRules[idx];
+    document.getElementById('ruleFieldPath').value = r.fieldPath;
+    document.getElementById('ruleValidatorType').value = r.validatorType;
+    onValidatorTypeChange();
+    document.getElementById('ruleErrorMessage').value = r.errorMessage;
+    document.getElementById('ruleIsRequired').checked = r.isRequired;
+    document.getElementById('ruleOrder').value = r.order;
+    if (r.parameters) {
+        const info = allValidatorTypes.find(v => v.type === r.validatorType);
+        info?.parameters.forEach(p => {
+            const el = document.getElementById(`param_${p.name}`);
+            if (el && r.parameters[p.name] !== undefined) el.value = Array.isArray(r.parameters[p.name]) ? r.parameters[p.name].join(', ') : r.parameters[p.name];
+        });
+    }
+    new bootstrap.Modal('#addRuleModal').show();
+}
+
+function removeRule(idx) {
+    fieldRules.splice(idx, 1);
+    renderRulesList();
+}
+
+// ========== Group Rules ==========
+function addGroupRule() { new bootstrap.Modal('#groupRuleModal').show(); }
+
+function confirmAddGroupRule() {
+    const name = document.getElementById('grGroupName').value.trim();
+    const type = document.getElementById('grGroupType').value;
+    const paths = document.getElementById('grFieldPaths').value.split('\n').map(s=>s.trim()).filter(Boolean);
+    if (!name || !type || !paths.length) { toast('Group name, type, and fields are required', 'warning'); return; }
+    groupRules.push({ groupName: name, groupValidatorType: type, fieldPaths: paths, errorMessage: document.getElementById('grErrorMessage').value });
+    bootstrap.Modal.getInstance('#groupRuleModal').hide();
+    renderGroupRules();
+    toast(`Group rule "${name}" added`);
+}
+
+function renderGroupRules() {
+    const section = document.getElementById('groupRulesSection');
+    section.classList.toggle('d-none', groupRules.length === 0);
+    document.getElementById('groupRulesList').innerHTML = groupRules.map((g, i) => `
+      <div class="rule-card d-flex align-items-center gap-2">
+        <i class="bi bi-diagram-2 text-warning"></i>
+        <strong class="small">${escHtml(g.groupName)}</strong>
+        <span class="badge bg-warning text-dark">${escHtml(g.groupValidatorType)}</span>
+        <span class="text-muted small">${g.fieldPaths.join(', ')}</span>
+        <button class="btn btn-sm btn-outline-danger py-0 px-1 ms-auto" onclick="removeGroupRule(${i})"><i class="bi bi-x-lg" style="font-size:11px"></i></button>
+      </div>`).join('');
+}
+
+function removeGroupRule(i) { groupRules.splice(i,1); renderGroupRules(); }
+
+// ========== Save Template ==========
+async function saveTemplate() {
+    const name = document.getElementById('templateName').value.trim();
+    if (!name) { toast('Template name is required', 'warning'); return; }
+    if (!fieldRules.length && !groupRules.length) { toast('Add at least one rule', 'warning'); return; }
+
+    const payload = { name, description: document.getElementById('templateDescription').value, tags: document.getElementById('templateTags').value, fieldRules, groupRules };
+    const existing = allTemplates.find(t => t.name === name);
+    const url = existing ? `/api/templates/${encodeURIComponent(name)}` : '/api/templates';
+    const method = existing ? 'PUT' : 'POST';
+
+    const res = await fetch(url, { method, headers: { ...apiHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    if (res.ok || res.status === 201) {
+        toast(`Template "${name}" ${existing ? 'updated' : 'saved'}!`, 'success');
+        await loadTemplates();
+    } else {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        toast(err.error || 'Save failed', 'danger');
+    }
+}
+
+function clearBuilder() {
+    fieldRules = []; groupRules = [];
+    document.getElementById('templateName').value = '';
+    document.getElementById('templateDescription').value = '';
+    document.getElementById('templateTags').value = '';
+    sampleJsonCM.setValue('{\n  "id": 1\n}');
+    document.getElementById('fieldTree').innerHTML = '<div class="text-center py-4 text-muted small">Paste JSON above and click Explore Fields</div>';
+    renderRulesList(); renderGroupRules();
+}
+
+function previewTemplate() {
+    const payload = {
+        name: document.getElementById('templateName').value || '(unnamed)',
+        description: document.getElementById('templateDescription').value,
+        fieldRules, groupRules
+    };
+    document.getElementById('previewContent').innerHTML = `<pre class="api-snippet">${escHtml(JSON.stringify(payload, null, 2))}</pre>`;
+    new bootstrap.Modal('#previewModal').show();
+}
+
+// ========== Validation ==========
+async function runValidation() {
+    const template = document.getElementById('validateTemplate').value;
+    if (!template) { toast('Select a template', 'warning'); return; }
+    let json;
+    try { JSON.parse(validateJsonCM.getValue()); json = validateJsonCM.getValue(); } catch { toast('Invalid JSON', 'danger'); return; }
+
+    const btn = document.querySelector('[onclick="runValidation()"]');
+    const spinner = document.getElementById('validateSpinner');
+    btn.disabled = true; spinner.classList.remove('d-none');
+
+    try {
+        const res = await fetch('/api/validate', {
+            method: 'POST',
+            headers: { ...apiHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ templateName: template, jsonPayload: json, stopOnFirstError: document.getElementById('stopOnFirst').checked })
+        });
+        const result = await res.json();
+        renderValidationResult(result);
+    } finally { btn.disabled = false; spinner.classList.add('d-none'); }
+}
+
+function renderValidationResult(result) {
+    const container = document.getElementById('validationResults');
+    const icon = result.isValid ? '<i class="bi bi-shield-check fs-1 text-success"></i>' : '<i class="bi bi-shield-x fs-1 text-danger"></i>';
+    const status = result.isValid
+        ? '<div class="alert alert-success py-2 px-3 mb-2 fw-semibold"><i class="bi bi-check-circle me-2"></i>Validation PASSED</div>'
+        : `<div class="alert alert-danger py-2 px-3 mb-2 fw-semibold"><i class="bi bi-x-circle me-2"></i>Validation FAILED — ${result.errors.length} error(s)</div>`;
+
+    container.innerHTML = `
+      <div class="text-center mb-3">${icon}</div>
+      ${status}
+      <div class="d-flex justify-content-between small text-muted mb-2">
+        <span>Template: <strong>${escHtml(result.templateName)}</strong></span>
+        <span>${result.totalRulesChecked} rules checked</span>
+      </div>
+      ${result.errors.map(e => `
+        <div class="result-item fail fade-in">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-x-circle-fill text-danger"></i>
+            <code class="text-warning">${escHtml(e.fieldPath)}</code>
+            ${e.groupName ? `<span class="badge bg-warning text-dark">group: ${escHtml(e.groupName)}</span>` : ''}
+          </div>
+          <div class="text-danger small mt-1 ms-4">${escHtml(e.errorMessage)}</div>
+          ${e.actualValue !== null && e.actualValue !== undefined ? `<div class="text-muted ms-4" style="font-size:11px">Got: <code>${escHtml(JSON.stringify(e.actualValue))}</code></div>` : ''}
+        </div>`).join('')}
+      ${result.warnings.map(w => `<div class="alert alert-warning py-1 px-2 small"><i class="bi bi-exclamation-triangle me-1"></i>${escHtml(w)}</div>`).join('')}
+      ${result.isValid ? '<div class="result-item pass text-center"><i class="bi bi-check-all me-2"></i>All rules passed successfully</div>' : ''}`;
+}
+
+// ========== API Docs ==========
+function renderApiDocs() {
+    const endpoints = [
+        { method: 'GET', path: '/api/templates', desc: 'List all templates', auth: true, response: 'Array of template summaries' },
+        { method: 'GET', path: '/api/templates/{name}', desc: 'Get template by name (full rules)', auth: true, response: 'TemplateDetailDto' },
+        { method: 'POST', path: '/api/templates', desc: 'Create new template', auth: true, body: '{ "name": "...", "description": "...", "fieldRules": [...] }', response: '201 Created with template detail' },
+        { method: 'PUT', path: '/api/templates/{name}', desc: 'Update existing template', auth: true, body: 'Same as POST', response: 'Updated template' },
+        { method: 'DELETE', path: '/api/templates/{name}', desc: 'Delete template', auth: true, response: '204 No Content' },
+        { method: 'POST', path: '/api/validate', desc: 'Validate JSON against a template', auth: true, body: '{ "templateName": "...", "jsonPayload": "...", "stopOnFirstError": false }', response: 'ValidationResponse' },
+        { method: 'GET', path: '/api/validate/types', desc: 'List all validator types', auth: true, response: 'Categories + validators array', query: '?category=SAP+%2F+OData' },
+        { method: 'POST', path: '/mcp', desc: 'MCP JSON-RPC endpoint (tools + resources)', auth: false, body: '{ "jsonrpc": "2.0", "method": "tools/list", "id": 1 }', response: 'MCP JSON-RPC response' },
+    ];
+
+    const methodColor = { GET: 'success', POST: 'primary', PUT: 'warning', DELETE: 'danger' };
+    document.getElementById('apiDocs').innerHTML = endpoints.map(e => `
+      <div class="card mb-2">
+        <div class="card-body py-2 px-3">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge bg-${methodColor[e.method]}">${e.method}</span>
+            <code class="text-warning">${e.path}${e.query ? `<span class="text-muted">${e.query}</span>` : ''}</code>
+            ${e.auth ? '<span class="badge bg-secondary" title="Basic Auth required"><i class="bi bi-lock"></i></span>' : '<span class="badge bg-success-subtle text-success">Public</span>'}
+          </div>
+          <div class="text-muted small">${e.desc}</div>
+          ${e.body ? `<div class="mt-1"><span class="text-muted" style="font-size:10px">Body: </span><code class="text-primary" style="font-size:10px">${escHtml(e.body)}</code></div>` : ''}
+          <div class="mt-1"><span class="text-muted" style="font-size:10px">Response: </span><span class="text-muted" style="font-size:10px">${e.response}</span></div>
+        </div>
+      </div>`).join('');
+}
+
+function copyMcpConfig() {
+    const config = JSON.stringify({ mcpServers: { "ark-validator": { url: window.location.origin + '/mcp', transport: 'http' } } }, null, 2);
+    navigator.clipboard.writeText(config).then(() => toast('MCP config copied!', 'success'));
+}
+
+// ========== Helpers ==========
+function apiHeaders() {
+    return { 'Authorization': 'Basic ' + btoa('admin:ark2024!') };
+}
+
+function escHtml(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toast(msg, type = 'info') {
+    const id = 'toast_' + Date.now();
+    const icons = { success: 'bi-check-circle-fill text-success', danger: 'bi-x-circle-fill text-danger', warning: 'bi-exclamation-triangle-fill text-warning', info: 'bi-info-circle-fill text-primary' };
+    document.getElementById('toastContainer').insertAdjacentHTML('beforeend', `
+      <div id="${id}" class="toast show align-items-center border-0 mb-2 fade-in" style="background:var(--ark-surface);border:1px solid var(--ark-border)!important">
+        <div class="d-flex align-items-center gap-2 px-3 py-2">
+          <i class="bi ${icons[type] || icons.info}"></i>
+          <span class="small flex-grow-1">${escHtml(msg)}</span>
+          <button type="button" class="btn-close btn-close-white btn-sm ms-2" onclick="document.getElementById('${id}').remove()"></button>
+        </div>
+      </div>`);
+    setTimeout(() => document.getElementById(id)?.remove(), 4000);
+}
+</script>
+}

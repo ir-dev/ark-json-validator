@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - ARK JSON Validator</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/codemirror.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/theme/dracula.min.css" />
+    <style>
+        :root {
+            --ark-bg: #0d1117;
+            --ark-surface: #161b22;
+            --ark-border: #30363d;
+            --ark-accent: #58a6ff;
+            --ark-green: #3fb950;
+            --ark-red: #f85149;
+            --ark-yellow: #d29922;
+            --ark-purple: #bc8cff;
+            --ark-orange: #ffa657;
+        }
+        body { background: var(--ark-bg); color: #e6edf3; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .navbar { background: var(--ark-surface) !important; border-bottom: 1px solid var(--ark-border) !important; }
+        .navbar-brand { color: var(--ark-accent) !important; font-weight: 700; font-size: 1.3rem; letter-spacing: -0.5px; }
+        .navbar-brand .badge { font-size: 0.55rem; vertical-align: super; }
+        .nav-link { color: #8b949e !important; }
+        .nav-link:hover, .nav-link.active { color: #e6edf3 !important; }
+        .card { background: var(--ark-surface); border: 1px solid var(--ark-border); border-radius: 10px; }
+        .card-header { background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--ark-border); }
+        .tab-content { background: var(--ark-surface); border: 1px solid var(--ark-border); border-top: none; border-radius: 0 0 10px 10px; padding: 1.5rem; }
+        .nav-tabs { border-bottom: 1px solid var(--ark-border); }
+        .nav-tabs .nav-link { color: #8b949e; border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: 0.75rem 1.25rem; }
+        .nav-tabs .nav-link:hover { color: #e6edf3; border-bottom-color: var(--ark-border); background: transparent; }
+        .nav-tabs .nav-link.active { color: var(--ark-accent); border-bottom: 2px solid var(--ark-accent); background: transparent; }
+        .btn-primary { background: var(--ark-accent); border-color: var(--ark-accent); color: #000; font-weight: 600; }
+        .btn-primary:hover { background: #4493f8; border-color: #4493f8; }
+        .btn-success { background: var(--ark-green); border-color: var(--ark-green); color: #000; }
+        .btn-danger { background: var(--ark-red); border-color: var(--ark-red); }
+        .form-control, .form-select { background: #0d1117; border: 1px solid var(--ark-border); color: #e6edf3; }
+        .form-control:focus, .form-select:focus { background: #0d1117; border-color: var(--ark-accent); color: #e6edf3; box-shadow: 0 0 0 3px rgba(88,166,255,0.15); }
+        .form-control::placeholder { color: #484f58; }
+        .input-group-text { background: #161b22; border-color: var(--ark-border); color: #8b949e; }
+        .badge { font-weight: 500; }
+        .CodeMirror { background: #0d1117 !important; color: #e6edf3 !important; border: 1px solid var(--ark-border); border-radius: 6px; height: 280px; font-size: 13px; }
+        .CodeMirror-scroll { min-height: 200px; }
+        .cm-large .CodeMirror { height: 380px; }
+        .field-tree { background: #0d1117; border: 1px solid var(--ark-border); border-radius: 6px; max-height: 340px; overflow-y: auto; }
+        .field-tree-item { padding: 6px 12px; cursor: pointer; border-bottom: 1px solid rgba(48,54,61,0.5); display: flex; align-items: center; gap: 8px; }
+        .field-tree-item:hover { background: rgba(88,166,255,0.08); }
+        .field-tree-item .field-path { font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 12px; color: var(--ark-orange); }
+        .field-tree-item .field-type { font-size: 11px; color: #8b949e; }
+        .rule-card { background: #0d1117; border: 1px solid var(--ark-border); border-radius: 6px; padding: 10px 14px; margin-bottom: 8px; }
+        .rule-card:hover { border-color: var(--ark-accent); }
+        .rule-badge { font-size: 10px; padding: 2px 7px; border-radius: 20px; }
+        .validator-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid; }
+        .validator-chip.cat-general { border-color: #58a6ff; color: #58a6ff; }
+        .validator-chip.cat-string { border-color: #d29922; color: #d29922; }
+        .validator-chip.cat-numeric { border-color: #3fb950; color: #3fb950; }
+        .validator-chip.cat-format { border-color: #bc8cff; color: #bc8cff; }
+        .validator-chip.cat-datetime { border-color: #ffa657; color: #ffa657; }
+        .validator-chip.cat-sap { border-color: #f2cc60; color: #f2cc60; }
+        .validator-chip:hover { opacity: 0.8; }
+        .result-pass { color: var(--ark-green); }
+        .result-fail { color: var(--ark-red); }
+        .result-item { padding: 8px 12px; border-radius: 6px; margin-bottom: 4px; font-size: 13px; }
+        .result-item.pass { background: rgba(63,185,80,0.1); border: 1px solid rgba(63,185,80,0.3); }
+        .result-item.fail { background: rgba(248,81,73,0.1); border: 1px solid rgba(248,81,73,0.3); }
+        .template-card { cursor: pointer; transition: border-color 0.15s; }
+        .template-card:hover { border-color: var(--ark-accent); }
+        .template-card.selected { border-color: var(--ark-accent); box-shadow: 0 0 0 3px rgba(88,166,255,0.2); }
+        code { background: rgba(240,246,252,0.08); padding: 2px 5px; border-radius: 4px; font-size: 90%; color: #ffa657; }
+        pre.api-snippet { background: #0d1117; border: 1px solid var(--ark-border); border-radius: 6px; padding: 1rem; font-size: 12px; color: #e6edf3; overflow-x: auto; }
+        .tag-badge { background: rgba(88,166,255,0.1); border: 1px solid rgba(88,166,255,0.3); color: var(--ark-accent); font-size: 10px; padding: 1px 6px; border-radius: 10px; }
+        .sidebar-stat { text-align: center; padding: 12px; background: #0d1117; border-radius: 8px; }
+        .sidebar-stat .number { font-size: 2rem; font-weight: 700; color: var(--ark-accent); }
+        .sidebar-stat .label { font-size: 11px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; }
+        .mcp-endpoint { font-family: monospace; background: rgba(88,166,255,0.08); border: 1px solid rgba(88,166,255,0.2); padding: 8px 12px; border-radius: 6px; color: var(--ark-accent); }
+        .toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; }
+        .spinner-sm { width: 14px; height: 14px; }
+        @@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.25s ease; }
+        .section-header { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; font-weight: 600; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg mb-0">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+                <i class="bi bi-shield-check fs-5 text-primary"></i>
+                ARK JSON Validator
+                <span class="badge bg-primary text-dark">MCP</span>
+            </a>
+            <div class="d-flex align-items-center gap-3">
+                <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-25 px-2"><i class="bi bi-circle-fill" style="font-size:7px"></i> Live</span>
+                <a href="#api-tab" class="nav-link" onclick="showTab('api')"><i class="bi bi-code-slash me-1"></i>API Docs</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid px-4 py-3">
+        @RenderBody()
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/addon/fold/foldcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/addon/lint/lint.min.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
