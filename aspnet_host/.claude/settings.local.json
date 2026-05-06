@@ -4,6 +4,10 @@
       "Bash(Get-ChildItem -Path \"d:\\\\Abi\\\\git_src\\\\ark-json-validator\\\\aspnet_host\" -Recurse)",
       "Bash(Select-Object FullName)",
       "Bash(Head -50)"
+    ],
+    "additionalDirectories": [
+      "d:\\Abi\\git_src\\ark-json-validator\\mcp_client\\McpValidatorClient\\Controllers",
+      "d:\\Abi\\git_src\\ark-json-validator\\mcp_client\\McpValidatorClient"
     ]
   }
 }

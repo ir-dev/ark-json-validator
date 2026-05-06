@@ -1,0 +1,565 @@
+@{
+    ViewData["Title"] = "ARK Complaint Intelligence";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="main-layout">
+
+    <!-- ══════════════ LEFT PANEL ══════════════ -->
+    <div class="left-panel">
+
+        <!-- Complaint Input -->
+        <div class="card">
+            <div class="card-header d-flex align-items-center gap-2 py-2 px-3">
+                <i class="bi bi-chat-left-text text-primary"></i>
+                <strong class="small">Customer Complaint</strong>
+                <span class="ms-auto badge bg-secondary small" id="charCount">0 chars</span>
+            </div>
+            <div class="card-body p-3">
+                <textarea id="complaintText" class="form-control" rows="8" maxlength="2000"
+                    placeholder="Describe the customer complaint here…&#10;&#10;e.g. 'I was charged $250 twice for invoice INV-2024-0891 and still haven't received a refund after 3 weeks.'"
+                    oninput="updateCharCount()"></textarea>
+
+                <div class="mt-2 mb-1 section-label">Quick Samples</div>
+                <div id="sampleChips">
+                    <span class="sample-chip" onclick="loadSample('sap')">SAP Purchase Order</span>
+                    <span class="sample-chip" onclick="loadSample('billing')">Billing Dispute</span>
+                    <span class="sample-chip" onclick="loadSample('account')">Account Locked</span>
+                    <span class="sample-chip" onclick="loadSample('register')">User Registration</span>
+                    <span class="sample-chip" onclick="loadSample('shipping')">Shipping Delay</span>
+                    <span class="sample-chip" onclick="loadSample('defect')">Product Defect</span>
+                    <span class="sample-chip" onclick="loadSample('refund')">Refund Request</span>
+                    <span class="sample-chip" onclick="loadSample('outage')">Service Outage</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Options -->
+        <div class="card">
+            <div class="card-body py-2 px-3">
+                <div class="row g-2 align-items-end">
+                    <div class="col-8">
+                        <label class="section-label d-block mb-1">Override Template <span class="text-muted fw-normal">(optional)</span></label>
+                        <select class="form-select form-select-sm" id="overrideTemplate">
+                            <option value="">Auto-select via AI</option>
+                        </select>
+                    </div>
+                    <div class="col-4">
+                        <label class="section-label d-block mb-1">Mode</label>
+                        <select class="form-select form-select-sm" id="runMode">
+                            <option value="stream">Streaming</option>
+                            <option value="demo">Demo (no AI)</option>
+                            <option value="batch">Batch</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Run Button -->
+        <button class="btn btn-primary w-100 py-3" id="runBtn" onclick="runPipeline()" style="font-size:15px;">
+            <i class="bi bi-play-fill me-2"></i>Process Complaint
+            <div class="spinner-border spinner-border-sm ms-2 d-none" id="runSpinner"></div>
+        </button>
+
+        <!-- MCP Connection -->
+        <div class="card">
+            <div class="card-header py-2 px-3 d-flex align-items-center gap-2">
+                <i class="bi bi-plug text-warning"></i><strong class="small">MCP Server</strong>
+            </div>
+            <div class="card-body py-2 px-3">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <code class="flex-grow-1" id="mcpBaseUrl" style="font-size:11px">http://localhost:5000/mcp</code>
+                    <button class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="pingMcp()"><i class="bi bi-arrow-clockwise"></i></button>
+                </div>
+                <div id="mcpTemplatesList" class="mt-1"></div>
+            </div>
+        </div>
+
+        <!-- How it works -->
+        <div class="card">
+            <div class="card-header py-2 px-3"><i class="bi bi-info-circle me-1 text-info"></i><strong class="small">Pipeline Flow</strong></div>
+            <div class="card-body py-2 px-3">
+                <div class="small text-muted lh-lg">
+                    <div><i class="bi bi-1-circle me-1 text-primary"></i><strong>Classify</strong> — Azure OpenAI identifies issue type</div>
+                    <div><i class="bi bi-2-circle me-1 text-primary"></i><strong>Extract</strong> — Entities pulled as strict JSON</div>
+                    <div><i class="bi bi-3-circle me-1 text-warning"></i><strong>Match</strong> — Best template selected via MCP</div>
+                    <div><i class="bi bi-4-circle me-1 text-warning"></i><strong>Validate</strong> — JSON checked against template rules</div>
+                    <div><i class="bi bi-5-circle me-1 text-success"></i><strong>Execute</strong> — External process creates ticket &amp; routes</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════ RIGHT PANEL ══════════════ -->
+    <div class="right-panel">
+
+        <!-- Result Summary (hidden initially) -->
+        <div id="resultSummary" class="d-none mb-3 fade-in"></div>
+
+        <!-- Pipeline Stepper -->
+        <div class="card">
+            <div class="card-header py-2 px-3 d-flex align-items-center gap-2">
+                <i class="bi bi-diagram-3 text-primary"></i>
+                <strong class="small">Processing Pipeline</strong>
+                <span id="pipelineStatus" class="ms-auto small text-muted">Ready</span>
+                <button class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="clearPipeline()" title="Clear"><i class="bi bi-trash" style="font-size:11px"></i></button>
+            </div>
+            <div class="card-body p-3">
+                <div class="pipeline-track" id="pipelineTrack">
+
+                    <!-- Step 1: Classification -->
+                    <div class="pipeline-step step-pending" id="step-classification">
+                        <div class="step-connector">
+                            <div class="step-icon"><i class="bi bi-tag"></i></div>
+                            <div class="step-line" id="line-classification"></div>
+                        </div>
+                        <div class="step-content">
+                            <div class="step-header">
+                                <span class="step-title">Complaint Classification</span>
+                                <span class="step-badge badge-pending" id="badge-classification">Pending</span>
+                                <span class="step-elapsed d-none" id="elapsed-classification"></span>
+                            </div>
+                            <div class="step-output text-muted small" id="output-classification">Azure OpenAI will classify the issue type</div>
+                            <div class="step-error d-none" id="error-classification"></div>
+                            <div class="step-detail d-none" id="detail-classification">
+                                <div class="step-detail-header" onclick="toggleDetail('classification')">
+                                    <i class="bi bi-braces me-1"></i>Raw JSON <i class="bi bi-chevron-down ms-auto" id="chevron-classification"></i>
+                                </div>
+                                <pre id="json-classification" class="json-viewer"></pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Entity Extraction -->
+                    <div class="pipeline-step step-pending" id="step-entityExtraction">
+                        <div class="step-connector">
+                            <div class="step-icon"><i class="bi bi-braces-asterisk"></i></div>
+                            <div class="step-line" id="line-entityExtraction"></div>
+                        </div>
+                        <div class="step-content">
+                            <div class="step-header">
+                                <span class="step-title">Entity Extraction</span>
+                                <span class="step-badge badge-pending" id="badge-entityExtraction">Pending</span>
+                                <span class="step-elapsed d-none" id="elapsed-entityExtraction"></span>
+                            </div>
+                            <div class="step-output text-muted small" id="output-entityExtraction">Structured JSON will be extracted from the complaint</div>
+                            <div class="step-error d-none" id="error-entityExtraction"></div>
+                            <div class="step-detail d-none" id="detail-entityExtraction">
+                                <div class="step-detail-header" onclick="toggleDetail('entityExtraction')">
+                                    <i class="bi bi-braces me-1"></i>Extracted JSON <i class="bi bi-chevron-down ms-auto" id="chevron-entityExtraction"></i>
+                                </div>
+                                <pre id="json-entityExtraction" class="json-viewer"></pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Template Selection -->
+                    <div class="pipeline-step step-pending" id="step-templateSelection">
+                        <div class="step-connector">
+                            <div class="step-icon"><i class="bi bi-collection"></i></div>
+                            <div class="step-line" id="line-templateSelection"></div>
+                        </div>
+                        <div class="step-content">
+                            <div class="step-header">
+                                <span class="step-title">MCP Template Selection</span>
+                                <span class="step-badge badge-pending" id="badge-templateSelection">Pending</span>
+                                <span class="step-elapsed d-none" id="elapsed-templateSelection"></span>
+                            </div>
+                            <div class="step-output text-muted small" id="output-templateSelection">Best matching validation template will be selected</div>
+                            <div class="step-error d-none" id="error-templateSelection"></div>
+                            <div class="step-detail d-none" id="detail-templateSelection">
+                                <div class="step-detail-header" onclick="toggleDetail('templateSelection')">
+                                    <i class="bi bi-braces me-1"></i>Selection Detail <i class="bi bi-chevron-down ms-auto" id="chevron-templateSelection"></i>
+                                </div>
+                                <pre id="json-templateSelection" class="json-viewer"></pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Validation -->
+                    <div class="pipeline-step step-pending" id="step-validation">
+                        <div class="step-connector">
+                            <div class="step-icon"><i class="bi bi-shield-check"></i></div>
+                            <div class="step-line" id="line-validation"></div>
+                        </div>
+                        <div class="step-content">
+                            <div class="step-header">
+                                <span class="step-title">MCP JSON Validation</span>
+                                <span class="step-badge badge-pending" id="badge-validation">Pending</span>
+                                <span class="step-elapsed d-none" id="elapsed-validation"></span>
+                            </div>
+                            <div class="step-output text-muted small" id="output-validation">Extracted JSON will be validated against template rules</div>
+                            <div class="step-error d-none" id="error-validation"></div>
+                            <div id="validationErrors" class="d-none mt-1"></div>
+                            <div class="step-detail d-none" id="detail-validation">
+                                <div class="step-detail-header" onclick="toggleDetail('validation')">
+                                    <i class="bi bi-braces me-1"></i>Validation Result <i class="bi bi-chevron-down ms-auto" id="chevron-validation"></i>
+                                </div>
+                                <pre id="json-validation" class="json-viewer"></pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 5: Process Execution -->
+                    <div class="pipeline-step step-pending" id="step-processExecution">
+                        <div class="step-connector">
+                            <div class="step-icon"><i class="bi bi-terminal"></i></div>
+                            <!-- no line after last step -->
+                        </div>
+                        <div class="step-content">
+                            <div class="step-header">
+                                <span class="step-title">External Process Execution</span>
+                                <span class="step-badge badge-pending" id="badge-processExecution">Pending</span>
+                                <span class="step-elapsed d-none" id="elapsed-processExecution"></span>
+                            </div>
+                            <div class="step-output text-muted small" id="output-processExecution">Cross-platform process will be invoked to route the complaint</div>
+                            <div class="step-error d-none" id="error-processExecution"></div>
+                            <div id="ticketDisplay" class="d-none mt-2"></div>
+                            <div class="step-detail d-none" id="detail-processExecution">
+                                <div class="step-detail-header" onclick="toggleDetail('processExecution')">
+                                    <i class="bi bi-terminal me-1"></i>Process Output <i class="bi bi-chevron-down ms-auto" id="chevron-processExecution"></i>
+                                </div>
+                                <pre id="json-processExecution" class="json-viewer"></pre>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+// ════════════════════════════════════════════════════
+// State
+const STEPS = ['classification','entityExtraction','templateSelection','validation','processExecution'];
+const STEP_ICONS = { classification:'bi-tag', entityExtraction:'bi-braces-asterisk', templateSelection:'bi-collection', validation:'bi-shield-check', processExecution:'bi-terminal' };
+const SAMPLES = {
+    sap:      `I'm reporting an issue with SAP Purchase Order 4500000001. The CompanyCode 1000 is showing incorrect vendor 0000001234 and the PostingDate /Date(1706227200000)/ is wrong. The Plant code 1000 and Currency USD need verification. This is urgent as the finance team is blocked.`,
+    billing:  `I was incorrectly charged $349.99 on my credit card ending in 4521 for invoice INV-2024-08912. I had already paid this in January and now there's a duplicate charge. My account email is john.doe@example.com and my customer ID is CUST-00892. Please process a refund immediately.`,
+    account:  `My account at username 'john_doe_pro' has been locked since yesterday and I cannot login. I've tried resetting my password to my email john.doe@example.com but the reset email never arrives. My phone number on file is +1-555-123-4567. Account ID: ACC-2024-0091.`,
+    register: `I tried to create a new account with email newuser@example.com, username 'techuser99', age 27, and phone +44-20-7946-0958. The registration keeps failing with a generic error. My website is https://myportfolio.com and I'm located in the UK.`,
+    shipping: `My order #ORD-2024-88712 with tracking number TRK1234567890US hasn't arrived yet. It was expected on 2024-01-20 but it's now 10 days late. Carrier is FedEx. My delivery address is 123 Main St, New York, NY 10001. Please investigate — my email is customer@gmail.com.`,
+    defect:   `The product I received (SKU: PRD-X200-BLK, Order ID: ORD-2024-55443) is completely broken. The screen cracked right out of the box and the power button doesn't work at all. Purchase date was 2024-01-10. I'd rate the severity as critical. Contact me at support@customer.com or +1-800-555-0199.`,
+    refund:   `I would like to return order ORD-2024-77231 purchased on 2024-01-05 and get a full refund of $189.00 USD to my original payment method. The reason is that the item doesn't match the description. My email is refund.request@example.com. I prefer a direct refund over store credit.`,
+    outage:   `Your payment processing service has been down for the last 2 hours in the EU-WEST region. Our entire checkout flow is broken and we're losing thousands of dollars per minute. This started around 2024-01-15T14:00:00Z and is still ongoing. Severity is CRITICAL. Contact: devops@company.com`
+};
+
+// ════════════════════════════════════════════════════
+// Init
+document.addEventListener('DOMContentLoaded', async () => {
+    await pingMcp();
+    await loadTemplateOptions();
+});
+
+// ════════════════════════════════════════════════════
+// MCP status
+async function pingMcp() {
+    const badge = document.getElementById('mcpStatus');
+    try {
+        const r = await fetch('/api/complaint/templates');
+        if (r.ok) {
+            const templates = await r.json();
+            badge.className = 'badge';
+            badge.style.background = 'rgba(63,185,80,.2)';
+            badge.style.border = '1px solid rgba(63,185,80,.4)';
+            badge.style.color = '#3fb950';
+            badge.innerHTML = `<i class="bi bi-circle-fill me-1" style="font-size:7px"></i>MCP Connected (${templates.length} templates)`;
+            renderMcpTemplates(templates);
+        } else throw new Error();
+    } catch {
+        badge.className = 'badge bg-danger bg-opacity-25 border border-danger border-opacity-25 text-danger';
+        badge.innerHTML = `<i class="bi bi-circle-fill me-1" style="font-size:7px"></i>MCP Offline`;
+        document.getElementById('mcpTemplatesList').innerHTML = '<div class="text-muted" style="font-size:11px"><i class="bi bi-exclamation-triangle me-1"></i>Cannot reach ARK Validator at http://localhost:5000</div>';
+    }
+}
+
+function renderMcpTemplates(templates) {
+    const el = document.getElementById('mcpTemplatesList');
+    el.innerHTML = templates.map(t => `
+      <div class="d-flex align-items-center gap-1 py-1" style="border-bottom:1px solid var(--border)">
+        <i class="bi bi-file-earmark-check text-success" style="font-size:11px"></i>
+        <span class="small">${esc(t.name)}</span>
+        <span class="ms-auto text-muted" style="font-size:10px">${t.fieldRuleCount} rules</span>
+      </div>`).join('') || '<div class="text-muted small">No templates found</div>';
+}
+
+async function loadTemplateOptions() {
+    try {
+        const r = await fetch('/api/complaint/templates');
+        if (!r.ok) return;
+        const templates = await r.json();
+        const sel = document.getElementById('overrideTemplate');
+        templates.forEach(t => sel.appendChild(new Option(t.name, t.name)));
+    } catch {}
+}
+
+// ════════════════════════════════════════════════════
+// Samples
+function loadSample(key) {
+    document.getElementById('complaintText').value = SAMPLES[key] || '';
+    updateCharCount();
+    document.getElementById('complaintText').focus();
+}
+function updateCharCount() {
+    const n = document.getElementById('complaintText').value.length;
+    document.getElementById('charCount').textContent = `${n} chars`;
+}
+
+// ════════════════════════════════════════════════════
+// Pipeline runner
+async function runPipeline() {
+    const complaint = document.getElementById('complaintText').value.trim();
+    if (!complaint) { toast('Enter a complaint first', 'warning'); return; }
+
+    const mode = document.getElementById('runMode').value;
+    const override = document.getElementById('overrideTemplate').value;
+    const body = { complaintText: complaint, overrideTemplate: override || null };
+
+    // Reset UI
+    resetPipeline();
+    setRunning(true);
+    document.getElementById('pipelineStatus').textContent = 'Processing…';
+    document.getElementById('resultSummary').classList.add('d-none');
+
+    try {
+        if (mode === 'demo') await runDemo(body);
+        else if (mode === 'stream') await runStreaming(body);
+        else await runBatch(body);
+    } finally { setRunning(false); }
+}
+
+async function runDemo(body) {
+    STEPS.forEach(s => setStepStatus(s, 'running'));
+    await delay(300);
+    const r = await fetch('/api/complaint/process/demo', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const result = await r.json();
+    applyBatchResult(result);
+}
+
+async function runBatch(body) {
+    STEPS.forEach(s => setStepStatus(s, 'running'));
+    const r = await fetch('/api/complaint/process', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if (!r.ok) { toast('Pipeline error: ' + r.statusText, 'danger'); return; }
+    const result = await r.json();
+    applyBatchResult(result);
+}
+
+async function runStreaming(body) {
+    const r = await fetch('/api/complaint/process/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+
+    if (!r.ok) { toast('Stream error', 'danger'); return; }
+
+    const stepKeyMap = {
+        classification: 'classification', entityextraction: 'entityExtraction',
+        templateselection: 'templateSelection', validation: 'validation',
+        processexecution: 'processExecution'
+    };
+
+    // Mark all as running
+    STEPS.forEach(s => setStepStatus(s, 'running'));
+
+    const reader = r.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let currentEvent = '';
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+
+        for (const line of lines) {
+            if (line.startsWith('event: ')) { currentEvent = line.slice(7).trim(); }
+            else if (line.startsWith('data: ')) {
+                try {
+                    const data = JSON.parse(line.slice(6));
+                    if (currentEvent === 'start' || currentEvent === 'done') continue;
+                    if (currentEvent === 'error') { toast('Pipeline error: ' + data.message, 'danger'); continue; }
+                    const stepKey = stepKeyMap[currentEvent.toLowerCase()];
+                    if (stepKey && data.step) applyStreamStep(stepKey, data.step);
+                } catch {}
+            }
+        }
+    }
+    showSummary();
+}
+
+function applyStreamStep(key, step) {
+    const status = step.status || 'pending';
+    setStepStatus(key, status);
+    if (step.output) document.getElementById(`output-${key}`).textContent = step.output;
+    if (step.error) {
+        const el = document.getElementById(`error-${key}`);
+        el.textContent = step.error; el.classList.remove('d-none');
+    }
+    if (step.elapsedMs) {
+        const el = document.getElementById(`elapsed-${key}`);
+        el.textContent = `${step.elapsedMs}ms`; el.classList.remove('d-none');
+    }
+    if (step.rawJson) {
+        const pre = document.getElementById(`json-${key}`);
+        if (pre) { pre.innerHTML = syntaxHighlight(step.rawJson); document.getElementById(`detail-${key}`)?.classList.remove('d-none'); }
+    }
+    if (key === 'validation' && step.rawJson) renderValidationErrors(step.rawJson);
+    if (key === 'processExecution' && step.metadata?.ticketId) renderTicket(step.metadata.ticketId);
+    if (status === 'success') document.getElementById(`line-${key}`)?.classList.add('done');
+}
+
+function applyBatchResult(result) {
+    const stepMap = {
+        classification: result.classification, entityExtraction: result.entityExtraction,
+        templateSelection: result.templateSelection, validation: result.validation,
+        processExecution: result.processExecution
+    };
+    for (const [key, step] of Object.entries(stepMap)) {
+        if (step) applyStreamStep(key, { ...step, status: step.status?.toLowerCase() });
+    }
+    showSummary();
+}
+
+function showSummary() {
+    document.getElementById('pipelineStatus').textContent = 'Complete';
+    const allSteps = STEPS.map(s => document.getElementById(`step-${s}`));
+    const allPassed = allSteps.every(s => s.classList.contains('step-success') || s.classList.contains('step-skipped'));
+    const anyFailed = allSteps.some(s => s.classList.contains('step-failed'));
+
+    const ticketEl = document.getElementById('ticketDisplay');
+    const ticketId = ticketEl.dataset.ticketId || '';
+    const bar = document.getElementById('resultSummary');
+    bar.classList.remove('d-none');
+    bar.innerHTML = allPassed && !anyFailed
+        ? `<div class="result-bar success fade-in"><i class="bi bi-check-circle-fill text-success fs-4"></i><div><div class="fw-semibold">Complaint Successfully Processed</div><div class="text-muted small">${ticketId ? `Ticket <strong>${ticketId}</strong> created and routed` : 'All 5 steps completed'}</div></div></div>`
+        : `<div class="result-bar failed fade-in"><i class="bi bi-x-circle-fill text-danger fs-4"></i><div><div class="fw-semibold text-danger">Pipeline Incomplete</div><div class="text-muted small">One or more steps failed — review errors below</div></div></div>`;
+}
+
+// ════════════════════════════════════════════════════
+// UI helpers
+function setStepStatus(key, status) {
+    const step = document.getElementById(`step-${key}`);
+    if (!step) return;
+    STEPS.forEach(() => {});
+    step.className = `pipeline-step step-${status}`;
+    const badge = document.getElementById(`badge-${key}`);
+    const icon  = step.querySelector('.step-icon');
+    badge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+    badge.className = `step-badge badge-${status}`;
+    const icons = { running: 'bi-arrow-repeat', success: 'bi-check-lg', failed: 'bi-x-lg', skipped: 'bi-dash', pending: STEP_ICONS[key] };
+    icon.innerHTML = `<i class="bi ${icons[status] || 'bi-circle'}" ${status === 'running' ? 'style="animation:pulse 1s infinite"' : ''}></i>`;
+}
+
+function renderValidationErrors(rawJson) {
+    try {
+        const v = JSON.parse(rawJson);
+        const container = document.getElementById('validationErrors');
+        if (!v.errors?.length) { container.classList.add('d-none'); return; }
+        container.classList.remove('d-none');
+        container.innerHTML = v.errors.map(e => `
+          <div class="d-flex align-items-start gap-1 py-1" style="font-size:12px;border-left:2px solid var(--red);padding-left:8px;margin-bottom:4px;">
+            <div><code class="text-warning">${esc(e.fieldPath)}</code> <span class="text-danger">${esc(e.errorMessage)}</span></div>
+          </div>`).join('');
+    } catch {}
+}
+
+function renderTicket(ticketId) {
+    const el = document.getElementById('ticketDisplay');
+    el.dataset.ticketId = ticketId;
+    el.classList.remove('d-none');
+    el.innerHTML = `<div style="display:inline-flex;align-items:center;gap:8px;background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3);border-radius:6px;padding:6px 12px;font-size:13px;">
+      <i class="bi bi-ticket-perforated text-success"></i>
+      <strong>Ticket Created:</strong> <code>${esc(ticketId)}</code>
+    </div>`;
+}
+
+function toggleDetail(key) {
+    const pre = document.getElementById(`json-${key}`);
+    const chevron = document.getElementById(`chevron-${key}`);
+    const isHidden = pre.style.display === 'none' || !pre.style.display;
+    pre.style.display = isHidden ? 'block' : 'none';
+    chevron.className = isHidden ? 'bi bi-chevron-up ms-auto' : 'bi bi-chevron-down ms-auto';
+}
+
+function resetPipeline() {
+    STEPS.forEach(s => {
+        setStepStatus(s, 'pending');
+        document.getElementById(`output-${s}`).textContent = {
+            classification: 'Azure OpenAI will classify the issue type',
+            entityExtraction: 'Structured JSON will be extracted from the complaint',
+            templateSelection: 'Best matching validation template will be selected',
+            validation: 'Extracted JSON will be validated against template rules',
+            processExecution: 'Cross-platform process will be invoked to route the complaint'
+        }[s];
+        const err = document.getElementById(`error-${s}`);
+        if (err) { err.textContent = ''; err.classList.add('d-none'); }
+        const elapsed = document.getElementById(`elapsed-${s}`);
+        if (elapsed) { elapsed.textContent = ''; elapsed.classList.add('d-none'); }
+        const detail = document.getElementById(`detail-${s}`);
+        if (detail) detail.classList.add('d-none');
+        document.getElementById(`line-${s}`)?.classList.remove('done');
+    });
+    document.getElementById('validationErrors').classList.add('d-none');
+    document.getElementById('ticketDisplay').classList.add('d-none');
+}
+
+function clearPipeline() {
+    resetPipeline();
+    document.getElementById('resultSummary').classList.add('d-none');
+    document.getElementById('pipelineStatus').textContent = 'Ready';
+}
+
+function setRunning(r) {
+    const btn = document.getElementById('runBtn');
+    const spinner = document.getElementById('runSpinner');
+    btn.disabled = r;
+    if (r) { spinner.classList.remove('d-none'); btn.querySelector('i').className = 'bi bi-hourglass-split me-2'; }
+    else   { spinner.classList.add('d-none');    btn.querySelector('i').className = 'bi bi-play-fill me-2'; }
+}
+
+// ════════════════════════════════════════════════════
+// JSON syntax highlight
+function syntaxHighlight(json) {
+    if (!json) return '';
+    try {
+        const obj = typeof json === 'string' ? JSON.parse(json) : json;
+        json = JSON.stringify(obj, null, 2);
+    } catch { /* use as-is */ }
+    return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, match => {
+        let cls = 'json-num';
+        if (/^"/.test(match)) { cls = /:$/.test(match) ? 'json-key' : 'json-str'; }
+        else if (/true|false/.test(match)) cls = 'json-bool';
+        else if (/null/.test(match)) cls = 'json-null';
+        return `<span class="${cls}">${match}</span>`;
+    });
+}
+
+function esc(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function toast(msg, type = 'info') {
+    const id = 'toast_' + Date.now();
+    const icons = { success:'bi-check-circle-fill text-success', danger:'bi-x-circle-fill text-danger', warning:'bi-exclamation-triangle-fill text-warning', info:'bi-info-circle-fill text-primary' };
+    document.getElementById('toastContainer').insertAdjacentHTML('beforeend', `
+      <div id="${id}" class="toast show border-0 mb-2 fade-in" style="background:var(--surface);border:1px solid var(--border)!important">
+        <div class="d-flex align-items-center gap-2 px-3 py-2">
+          <i class="bi ${icons[type]}"></i>
+          <span class="small flex-grow-1">${esc(msg)}</span>
+          <button class="btn-close btn-close-white btn-sm" onclick="document.getElementById('${id}').remove()"></button>
+        </div>
+      </div>`);
+    setTimeout(() => document.getElementById(id)?.remove(), 5000);
+}
+</script>
+}
