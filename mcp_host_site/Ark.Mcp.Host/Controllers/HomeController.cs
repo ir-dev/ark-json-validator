@@ -15,9 +15,13 @@ public class HomeController : Controller
         _context = context;
         _logger = logger;
     }
+    public async Task<IActionResult> Index()
+    {
+        return View();
+    }
 
     [Authorize]
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Landing()
     {
         var recentServices = await _context.McpServices
             .Include(s => s.Owner)

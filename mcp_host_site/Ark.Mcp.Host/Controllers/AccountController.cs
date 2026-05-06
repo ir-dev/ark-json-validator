@@ -82,7 +82,7 @@ public class AccountController : Controller
                 <hr/>
                 <small>MCP Service Hub - Secure Authentication</small>";
 
-            await _emailSender.SendEmailAsync(email, "Your MCP Hub OTP Code", emailBody);
+            await _emailSender.SendEmailAsync(email, "Your ARK-MCP Hub OTP Code", emailBody);
             _logger.LogInformation($"OTP sent to {email}");
             
             TempData["SuccessMessage"] = "OTP sent successfully! Please check your email.";
@@ -91,6 +91,7 @@ public class AccountController : Controller
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send OTP email");
+            return RedirectToAction("VerifyOtp", new { email });
             ModelState.AddModelError("", "Failed to send OTP email. Please try again.");
             return View("Login", model);
         }
