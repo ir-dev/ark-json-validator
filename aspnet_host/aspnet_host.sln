@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ArkJsonValidator", "ArkJson
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ark.Mcp.Host", "..\mcp_host_site\Ark.Mcp.Host\Ark.Mcp.Host.csproj", "{1489EE8E-3019-4F91-B8C9-CA303B2AC768}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "McpValidatorClient", "..\mcp_client\McpValidatorClient\McpValidatorClient.csproj", "{EA6F1529-B78A-4710-8D68-62F8B2530ADC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -41,6 +43,18 @@ Global
 		{1489EE8E-3019-4F91-B8C9-CA303B2AC768}.Release|x64.Build.0 = Release|Any CPU
 		{1489EE8E-3019-4F91-B8C9-CA303B2AC768}.Release|x86.ActiveCfg = Release|Any CPU
 		{1489EE8E-3019-4F91-B8C9-CA303B2AC768}.Release|x86.Build.0 = Release|Any CPU
+		{EA6F1529-B78A-4710-8D68-62F8B2530ADC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EA6F1529-B78A-4710-8D68-62F8B2530ADC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EA6F1529-B78A-4710-8D68-62F8B2530ADC}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{EA6F1529-B78A-4710-8D68-62F8B2530ADC}.Debug|x64.Build.0 = Debug|Any CPU
+		{EA6F1529-B78A-4710-8D68-62F8B2530ADC}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{EA6F1529-B78A-4710-8D68-62F8B2530ADC}.Debug|x86.Build.0 = Debug|Any CPU
+		{EA6F1529-B78A-4710-8D68-62F8B2530ADC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EA6F1529-B78A-4710-8D68-62F8B2530ADC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EA6F1529-B78A-4710-8D68-62F8B2530ADC}.Release|x64.ActiveCfg = Release|Any CPU
+		{EA6F1529-B78A-4710-8D68-62F8B2530ADC}.Release|x64.Build.0 = Release|Any CPU
+		{EA6F1529-B78A-4710-8D68-62F8B2530ADC}.Release|x86.ActiveCfg = Release|Any CPU
+		{EA6F1529-B78A-4710-8D68-62F8B2530ADC}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
