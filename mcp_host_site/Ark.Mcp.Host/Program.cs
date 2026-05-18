@@ -35,6 +35,10 @@ builder.Services.AddScoped<IOtpService, OtpService>();
 // HttpContext Accessor
 builder.Services.AddHttpContextAccessor();
 
+// MCP discovery (calls remote MCP servers to list tools/resources/prompts)
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<McpDiscoveryService>();
+
 var app = builder.Build();
 
 // Configure pipeline

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using McpServiceHub.Data;
 using McpServiceHub.Models.Entities;
 using McpServiceHub.Models.ViewModels;
+using McpServiceHub.Services;
 
 namespace McpServiceHub.Controllers;
 
@@ -203,4 +204,65 @@ public class McpServicesController : Controller
 
         return View(service);
     }
+
+    [HttpGet]
+    public async Task<IActionResult> Discover(int id)
+    {
+        var service = await _context.McpServices
+            .Include(s => s.Owner)
+            .FirstOrDefaultAsync(s => s.Id == id);
+
+        if (service == null)
+        {
+            return NotFound();
+        }
+
+        var model = BuildDiscoveryViewModel(service);
+        return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Discover(McpDiscoveryViewModel model, [FromServices] McpDiscoveryService discovery)
+    {
+        var service = await _context.McpServices
+            .Include(s => s.Owner)
+            .FirstOrDefaultAsync(s => s.Id == model.ServiceId);
+
+        if (service == null)
+        {
+            return NotFound();
+        }
+
+        // Keep service-derived fields authoritative; user supplies only auth credentials.
+        model.ServiceName = service.Name;
+        model.EndpointUrl = service.EndpointUrl;
+        model.Domain = service.Domain;
+        model.Description = service.Description;
+        model.OwnerEmail = service.Owner.Email;
+
+        try
+        {
+            await discovery.DiscoverAsync(model);
+        }
+        catch (Exception ex)
+        {
+            model.HasDiscovered = true;
+            model.DiscoveryError = ex.Message;
+        }
+
+        return View(model);
+    }
+
+    private static McpDiscoveryViewModel BuildDiscoveryViewModel(McpService service) => new()
+    {
+        ServiceId = service.Id,
+        ServiceName = service.Name,
+        EndpointUrl = service.EndpointUrl,
+        Domain = service.Domain,
+        Description = service.Description,
+        OwnerEmail = service.Owner.Email,
+        AuthenticationType = service.AuthenticationType,
+        ApiKeyHeader = service.ApiKeyHeader
+    };
 }

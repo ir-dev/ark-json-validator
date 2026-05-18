@@ -1,0 +1,242 @@
+@model McpDiscoveryViewModel
+@{
+    ViewData["Title"] = "Discover - " + Model.ServiceName;
+}
+
+<div class="container py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-action="Index">My Services</a></li>
+            <li class="breadcrumb-item active" aria-current="page">@Model.ServiceName · Discovery</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <h2 class="mb-1"><i class="fas fa-search-plus text-primary me-2"></i>@Model.ServiceName</h2>
+            <div class="text-muted">
+                <i class="fas fa-link"></i>
+                <a href="@Model.EndpointUrl" target="_blank">@Model.EndpointUrl</a>
+                @if (!string.IsNullOrEmpty(Model.Domain))
+                {
+                    <span class="badge bg-secondary ms-2"><i class="fas fa-tag"></i> @Model.Domain</span>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 rounded-4 mb-4">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="mb-0"><i class="fas fa-shield-alt text-primary"></i> Authentication</h5>
+                    <small class="text-muted">Prepopulated from registration. Provide credentials to discover.</small>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Discover" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="ServiceId" />
+
+                        <div class="mb-3">
+                            <label asp-for="AuthenticationType" class="form-label fw-bold"></label>
+                            <select asp-for="AuthenticationType" class="form-select" id="authType">
+                                <option value="None">None &mdash; Public Access</option>
+                                <option value="ApiKey">API Key</option>
+                                <option value="Bearer">Bearer Token</option>
+                                <option value="OAuth">OAuth 2.0</option>
+                                <option value="Basic">Basic Auth</option>
+                            </select>
+                        </div>
+
+                        <div class="auth-section" data-auth="None">
+                            <div class="alert alert-light small mb-0">
+                                <i class="fas fa-info-circle"></i> No credentials required.
+                            </div>
+                        </div>
+
+                        <div class="auth-section" data-auth="ApiKey" style="display:none;">
+                            <div class="mb-3">
+                                <label asp-for="ApiKeyHeader" class="form-label"></label>
+                                <input asp-for="ApiKeyHeader" class="form-control" placeholder="X-API-Key" />
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="ApiKeyValue" class="form-label"></label>
+                                <input asp-for="ApiKeyValue" type="password" class="form-control" autocomplete="off" />
+                            </div>
+                        </div>
+
+                        <div class="auth-section" data-auth="Bearer" style="display:none;">
+                            <div class="mb-3">
+                                <label asp-for="BearerToken" class="form-label"></label>
+                                <input asp-for="BearerToken" type="password" class="form-control" autocomplete="off" />
+                            </div>
+                        </div>
+
+                        <div class="auth-section" data-auth="OAuth" style="display:none;">
+                            <div class="mb-3">
+                                <label asp-for="OAuthClientId" class="form-label"></label>
+                                <input asp-for="OAuthClientId" class="form-control" autocomplete="off" />
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="OAuthClientSecret" class="form-label"></label>
+                                <input asp-for="OAuthClientSecret" type="password" class="form-control" autocomplete="off" />
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="OAuthAccessToken" class="form-label"></label>
+                                <input asp-for="OAuthAccessToken" type="password" class="form-control" autocomplete="off" />
+                                <div class="form-text">If you already have a token, paste it here to skip the client flow.</div>
+                            </div>
+                        </div>
+
+                        <div class="auth-section" data-auth="Basic" style="display:none;">
+                            <div class="mb-3">
+                                <label asp-for="BasicUsername" class="form-label"></label>
+                                <input asp-for="BasicUsername" class="form-control" autocomplete="off" />
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="BasicPassword" class="form-label"></label>
+                                <input asp-for="BasicPassword" type="password" class="form-control" autocomplete="off" />
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 mt-2">
+                            <i class="fas fa-search"></i> Discover Tools &amp; Resources
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            @if (Model.HasDiscovered)
+            {
+                @if (!string.IsNullOrEmpty(Model.DiscoveryError))
+                {
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i> @Model.DiscoveryError
+                    </div>
+                }
+
+                <ul class="nav nav-tabs" role="tablist">
+                    <li class="nav-item">
+                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-tools" type="button">
+                            <i class="fas fa-wrench"></i> Tools <span class="badge bg-primary">@Model.Tools.Count</span>
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-resources" type="button">
+                            <i class="fas fa-folder"></i> Resources <span class="badge bg-primary">@Model.Resources.Count</span>
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-prompts" type="button">
+                            <i class="fas fa-comment-dots"></i> Prompts <span class="badge bg-primary">@Model.Prompts.Count</span>
+                        </button>
+                    </li>
+                </ul>
+                <div class="tab-content border border-top-0 rounded-bottom p-3 bg-white">
+                    <div class="tab-pane fade show active" id="tab-tools">
+                        @if (!Model.Tools.Any())
+                        {
+                            <p class="text-muted mb-0">No tools advertised by this server.</p>
+                        }
+                        else
+                        {
+                            @foreach (var tool in Model.Tools)
+                            {
+                                <div class="card mb-2 shadow-sm">
+                                    <div class="card-body">
+                                        <h6 class="mb-1"><i class="fas fa-wrench text-primary me-2"></i><code>@tool.Name</code></h6>
+                                        @if (!string.IsNullOrEmpty(tool.Description))
+                                        {
+                                            <p class="text-muted small mb-2">@tool.Description</p>
+                                        }
+                                        @if (!string.IsNullOrEmpty(tool.InputSchema))
+                                        {
+                                            <details>
+                                                <summary class="small text-primary" style="cursor:pointer;">Input Schema</summary>
+                                                <pre class="small bg-light p-2 rounded mt-2 mb-0"><code>@tool.InputSchema</code></pre>
+                                            </details>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                    <div class="tab-pane fade" id="tab-resources">
+                        @if (!Model.Resources.Any())
+                        {
+                            <p class="text-muted mb-0">No resources advertised by this server.</p>
+                        }
+                        else
+                        {
+                            @foreach (var r in Model.Resources)
+                            {
+                                <div class="card mb-2 shadow-sm">
+                                    <div class="card-body">
+                                        <h6 class="mb-1"><i class="fas fa-folder text-primary me-2"></i>@(string.IsNullOrEmpty(r.Name) ? r.Uri : r.Name)</h6>
+                                        <div><code class="small">@r.Uri</code></div>
+                                        @if (!string.IsNullOrEmpty(r.Description))
+                                        {
+                                            <p class="text-muted small mb-1 mt-2">@r.Description</p>
+                                        }
+                                        @if (!string.IsNullOrEmpty(r.MimeType))
+                                        {
+                                            <span class="badge bg-secondary">@r.MimeType</span>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                    <div class="tab-pane fade" id="tab-prompts">
+                        @if (!Model.Prompts.Any())
+                        {
+                            <p class="text-muted mb-0">No prompts advertised by this server.</p>
+                        }
+                        else
+                        {
+                            @foreach (var p in Model.Prompts)
+                            {
+                                <div class="card mb-2 shadow-sm">
+                                    <div class="card-body">
+                                        <h6 class="mb-1"><i class="fas fa-comment-dots text-primary me-2"></i>@p.Name</h6>
+                                        @if (!string.IsNullOrEmpty(p.Description))
+                                        {
+                                            <p class="text-muted small mb-0">@p.Description</p>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    Provide credentials on the left (already set to <strong>@Model.AuthenticationType</strong> from registration)
+                    and click <strong>Discover Tools &amp; Resources</strong> to query this MCP server.
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            const select = document.getElementById('authType');
+            const sections = document.querySelectorAll('.auth-section');
+            function sync() {
+                sections.forEach(el => {
+                    el.style.display = el.dataset.auth === select.value ? '' : 'none';
+                });
+            }
+            select.addEventListener('change', sync);
+            sync();
+        })();
+    </script>
+}
